@@ -184,7 +184,7 @@ func goTimeToGregorianTicks(lsc LeapSecondCalculator, now time.Time) uint64 {
 		s--
 	}
 
-	s += int64(lsc.LeapSecondsSinceUnixEpoch(s))
+	s += int64(lsc.LeapSecondsSinceUnixEpoch(s, false))
 	s += secondsFromGregorianEpochToUnixEpoch
 
 	if s < 0 {
@@ -203,7 +203,7 @@ func gregorianTicksToGoTime(lsc LeapSecondCalculator, num uint64) time.Time {
 	s := int64(num / ticksPerSecond)
 
 	s -= secondsFromGregorianEpochToUnixEpoch
-	s -= int64(lsc.LeapSecondsSinceUnixEpoch(s))
+	s -= int64(lsc.LeapSecondsSinceUnixEpoch(s, true))
 
 	if s < 0 && ns > 0 {
 		ns = nanosPerSecond - ns

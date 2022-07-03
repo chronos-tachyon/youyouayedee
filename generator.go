@@ -149,6 +149,8 @@ func (BaseGenerator) NewHashUUID(data []byte) (UUID, error) {
 	return NilUUID, MethodNotSupportedError{Method: MethodNewHashUUID}
 }
 
+var _ Generator = BaseGenerator{}
+
 // GeneratorFactory is an interface for constructing Generator instances.
 //
 // It is used to create hooks placed in GeneratorsByVersion, in order to modify

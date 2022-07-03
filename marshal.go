@@ -27,17 +27,23 @@ func (uuid UUID) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary fulfills the "encoding".BinaryUnmarshaler interface.
 func (uuid *UUID) UnmarshalBinary(data []byte) error {
+	*uuid = NilUUID
 	dataLen := uint(len(data))
 	switch dataLen {
 	case 0:
-		*uuid = NilUUID
 		return nil
 
 	case 16:
 		var tmp UUID
 		copy(tmp[:], data)
 		if !tmp.IsValid() {
-			return fmt.Errorf("invalid UUID")
+			vb := tmp[8]
+			return ParseError{
+				Input:       string(data),
+				Problem:     WrongVariant,
+				Args:        []interface{}{vb},
+				VariantByte: vb,
+			}
 		}
 		*uuid = tmp
 		return nil
@@ -45,6 +51,10 @@ func (uuid *UUID) UnmarshalBinary(data []byte) error {
 	default:
 		var err error
 		*uuid, err = ParseBytes(data)
+		if xerr, ok := err.(ParseError); ok && xerr.Problem == WrongLength {
+			xerr.Problem = WrongBinaryLength
+			err = xerr
+		}
 		return err
 	}
 }

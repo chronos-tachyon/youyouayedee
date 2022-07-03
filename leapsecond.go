@@ -1,9 +1,5 @@
 package youyouayedee
 
-import (
-	"sort"
-)
-
 // LeapSecondCalculator is an interface for calculating the number of leap
 // seconds by which Unix time differs from the number of SI seconds since
 // 1970-01-01T00:00:00Z.
@@ -16,13 +12,8 @@ import (
 // usually provided as part of your distribution's regularly updated timezone
 // database.  Other operating systems may vary.
 //
-// TODO: need a way to specify if the given seconds-since-epoch is a Unix time
-// (leap seconds skipped) or a UTC time (leap seconds counted).  This is
-// important for going in reverse, from Gregorian hectonanoseconds back to Unix
-// time.
-//
 type LeapSecondCalculator interface {
-	LeapSecondsSinceUnixEpoch(unixTime int64) int
+	LeapSecondsSinceUnixEpoch(seconds int64, includesLeapSeconds bool) int
 }
 
 // DummyLeapSecondCalculator falsely claims that there has never been a leap
@@ -31,7 +22,7 @@ type LeapSecondCalculator interface {
 //
 type DummyLeapSecondCalculator struct{}
 
-func (DummyLeapSecondCalculator) LeapSecondsSinceUnixEpoch(unixTime int64) int {
+func (DummyLeapSecondCalculator) LeapSecondsSinceUnixEpoch(seconds int64, includesLeapSeconds bool) int {
 	return 0
 }
 
@@ -47,12 +38,50 @@ var _ LeapSecondCalculator = DummyLeapSecondCalculator{}
 //
 type FixedLeapSecondCalculator struct{}
 
-func (FixedLeapSecondCalculator) LeapSecondsSinceUnixEpoch(unixTime int64) int {
-	tableLen := len(fixedLeapSecondTable)
-	i := sort.Search(tableLen, func(i int) bool {
-		return fixedLeapSecondTable[i].Time > unixTime
-	})
-	return fixedLeapSecondTable[i-1].Total
+func (FixedLeapSecondCalculator) LeapSecondsSinceUnixEpoch(seconds int64, includesLeapSeconds bool) int {
+
+	// NB: there are corner cases at each leap second boundary.
+	//
+	// Actual positive leap second:
+	//
+	//     UTC Time              Unix seconds    SI seconds  "Total" field
+	//     --------------------  ------------  ------------  -------------
+	//     2016-12-31T23:59:59Z    1483228799    1483228825             26
+	//     2016-12-31T23:59:60Z             -    1483228826             26
+	//     2017-01-01T00:00:00Z    1483228800    1483228827             27
+	//
+	//     This affects (includesLeapSeconds == true).
+	//
+	// Hypothetical negative leap second:
+	//
+	//     UTC Time              Unix seconds    SI seconds  "Total" field
+	//     --------------------  ------------  ------------  -------------
+	//     2016-12-31T23:59:58Z    1483228798    1483228825             27
+	//                        -    1483228799             -             27
+	//     2017-01-01T00:00:00Z    1483228800    1483228826             26
+	//
+	//     This affects (includesLeapSeconds == false).
+
+	tableLen := uint(len(fixedLeapSecondTable))
+	ti := uint(1)
+	total := int(0)
+	for ti < tableLen {
+		row := fixedLeapSecondTable[ti]
+		t := row.Time
+		if includesLeapSeconds {
+			minTotal := row.Total
+			if minTotal > total {
+				minTotal = total
+			}
+			t += int64(minTotal)
+		}
+		total = row.Total
+		if seconds < t {
+			break
+		}
+		ti++
+	}
+	return total
 }
 
 var _ LeapSecondCalculator = FixedLeapSecondCalculator{}

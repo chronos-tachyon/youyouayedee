@@ -239,6 +239,7 @@ const (
 	UnexpectedCharacter ParseProblem = iota
 	WrongVariant
 	WrongLength
+	WrongBinaryLength
 )
 
 // ParseProblemData holds data about a specific value of ParseProblem.
@@ -263,6 +264,11 @@ var parseProblemDataArray = [...]ParseProblemData{
 		GoName: "WrongLength",
 		Name:   "wrong input length",
 		Format: "unexpected input length %d; should be 0, 32, 36, 38, or 41",
+	},
+	{
+		GoName: "WrongBinaryLength",
+		Name:   "wrong binary data input length",
+		Format: "unexpected input length %d for binary data; should be 0, 16, 32, 36, 38, or 41",
 	},
 }
 
