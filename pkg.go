@@ -1,4 +1,5 @@
-// Package uuid provides tools for working with Universally Unique Identifiers.
+// Package youyouayedee provides tools for working with Universally Unique
+// Identifiers (UUIDs).
 //
 // There are 5 well-known UUID versions defined in RFC 4122:
 //
@@ -60,4 +61,4 @@
 // specific contexts.  This library has limited support for them, but you will
 // need to roll your own UUID generation algorithm (for obvious reasons).
 //
-package uuid
+package youyouayedee

@@ -1,7 +1,7 @@
 //go:build js
 // +build js
 
-package uuid
+package youyouayedee
 
 func listHardwareAddresses() ([]Node, error) {
 	return nil, nil

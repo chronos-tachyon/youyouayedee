@@ -1,4 +1,4 @@
-package uuid
+package youyouayedee
 
 import (
 	"crypto/md5"

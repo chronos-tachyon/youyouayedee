@@ -1,7 +1,7 @@
 //go:build !js
 // +build !js
 
-package uuid
+package youyouayedee
 
 import (
 	"net"
