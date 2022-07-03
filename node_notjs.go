@@ -22,10 +22,10 @@ func listHardwareAddresses() ([]Node, error) {
 
 		if node, ok := convertHardwareAddrToNode(iface.HardwareAddr); ok {
 			candidates = append(candidates, hwaddrCandidate{
-				Index:       iface.Index,
-				Node:        node,
-				IsMulticast: node.IsMulticast(),
-				IsLocal:     node.IsLocal(),
+				Node:      node,
+				Index:     iface.Index,
+				IsGlobal:  node.IsGlobal(),
+				IsUnicast: node.IsUnicast(),
 			})
 		}
 	}
@@ -70,10 +70,10 @@ func convertHardwareAddrToNode(hwaddr net.HardwareAddr) (Node, bool) {
 }
 
 type hwaddrCandidate struct {
-	Index       int
-	Node        Node
-	IsMulticast bool
-	IsLocal     bool
+	Node      Node
+	Index     int
+	IsGlobal  bool
+	IsUnicast bool
 }
 
 type hwaddrCandidates []hwaddrCandidate
@@ -89,11 +89,11 @@ func (list hwaddrCandidates) Swap(i, j int) {
 func (list hwaddrCandidates) Less(i, j int) bool {
 	a := list[i]
 	b := list[j]
-	if a.IsLocal != b.IsLocal {
-		return b.IsLocal
+	if a.IsGlobal != b.IsGlobal {
+		return a.IsGlobal
 	}
-	if a.IsMulticast != b.IsMulticast {
-		return b.IsMulticast
+	if a.IsUnicast != b.IsUnicast {
+		return a.IsUnicast
 	}
 	return a.Index < b.Index
 }

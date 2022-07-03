@@ -3,7 +3,6 @@ package uuid
 import (
 	"crypto/md5"
 	"crypto/sha1"
-	"fmt"
 	"hash"
 	"sync/atomic"
 )
@@ -33,7 +32,7 @@ func NewHashGenerator(version Version, factory func() hash.Hash, o GeneratorOpti
 
 	case 8:
 		if factory == nil {
-			return nil, fmt.Errorf("factory is nil; must specify a hash.Hash provider")
+			return nil, NilHashFactoryError{Version: version}
 		}
 
 	default:
@@ -42,7 +41,7 @@ func NewHashGenerator(version Version, factory func() hash.Hash, o GeneratorOpti
 
 	ns := o.Namespace
 	if !ns.IsValid() {
-		return nil, fmt.Errorf("Namespace is not a valid UUID")
+		return nil, InvalidNamespaceError{Version: version, Namespace: ns}
 	}
 
 	h := factory()

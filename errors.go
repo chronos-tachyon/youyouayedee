@@ -6,6 +6,17 @@ import (
 	"strconv"
 )
 
+// ClockStorageUnavailableError indicates that the ClockStorage Load method was
+// unable to provide a (last known timestamp, last known counter value) tuple
+// for the given Node.
+type ClockStorageUnavailableError struct{}
+
+func (ClockStorageUnavailableError) Error() string {
+	return "ClockStorage is not available"
+}
+
+var _ error = ClockStorageUnavailableError{}
+
 // UnsupportedVersionError indicates that NewGenerator does not know how to
 // generate UUIDs of the given Version.
 type UnsupportedVersionError struct {
@@ -18,8 +29,8 @@ func (err UnsupportedVersionError) Error() string {
 
 var _ error = UnsupportedVersionError{}
 
-// MismatchedVersionError indicates that a Generator is not implemented for
-// UUIDs of the given Version.
+// MismatchedVersionError indicates that a Generator constructor is not
+// implemented for UUIDs of the given Version.
 type MismatchedVersionError struct {
 	Requested Version
 	Expected  []Version
@@ -48,7 +59,33 @@ func (err MismatchedVersionError) Error() string {
 
 var _ error = MismatchedVersionError{}
 
-// MustNotHashError indicates that a Generator does not support NewHashUUID.
+// NilHashFactoryError indicates that a Generator requires a hash.Hash factory
+// callback.
+type NilHashFactoryError struct {
+	Version Version
+}
+
+func (err NilHashFactoryError) Error() string {
+	return fmt.Sprintf("this generator for %v UUIDs requires a hash.Hash factory callback, but factory is nil", err.Version)
+}
+
+var _ error = NilHashFactoryError{}
+
+// InvalidNamespaceError indicates that a Generator requires a valid namespace
+// UUID.
+type InvalidNamespaceError struct {
+	Version   Version
+	Namespace UUID
+}
+
+func (err InvalidNamespaceError) Error() string {
+	return fmt.Sprintf("this generator for %v UUIDs requires a valid namespace UUID, but Namespace %v is not valid", err.Version, err.Namespace)
+}
+
+var _ error = InvalidNamespaceError{}
+
+// MustNotHashError indicates that a Generator does not support the NewHashUUID
+// method.
 type MustNotHashError struct {
 	Version Version
 }
@@ -59,7 +96,8 @@ func (err MustNotHashError) Error() string {
 
 var _ error = MustNotHashError{}
 
-// MustHashError indicates that a Generator does not support NewUUID.
+// MustHashError indicates that a Generator does not support the NewUUID
+// method.
 type MustHashError struct {
 	Version Version
 }
@@ -70,31 +108,87 @@ func (err MustHashError) Error() string {
 
 var _ error = MustHashError{}
 
-// ClockStorageUnavailableError indicates that the ClockStorage Load method was
-// unable to provide a (last known timestamp, last known counter value) tuple
-// for the given Node.
-type ClockStorageUnavailableError struct{}
+// Operation enumerates the operations which can fail while initializing a
+// Generator or generating a UUID.
+type Operation uint
 
-func (ClockStorageUnavailableError) Error() string {
-	return "ClockStorage is not available"
+const (
+	GenerateNodeOp Operation = iota
+	ClockStorageLoadOp
+	ClockStorageStoreOp
+	InitializeBlakeHashOp
+)
+
+// OperationData holds data about a specific value of Operation.
+type OperationData struct {
+	GoName string
+	Name   string
 }
 
-var _ error = ClockStorageUnavailableError{}
-
-// IOError indicates that an I/O error occurred.
-type IOError struct {
-	Err error
+var operationDataArray = [...]OperationData{
+	{
+		GoName: "GenerateNodeOp",
+		Name:   "failed to generate node identifier",
+	},
+	{
+		GoName: "ClockStorageLoadOp",
+		Name:   "failed to obtain initial clock sequence value from persistent storage",
+	},
+	{
+		GoName: "ClockStorageStoreOp",
+		Name:   "failed to store clock sequence value to persistent storage",
+	},
+	{
+		GoName: "InitializeBlakeHashOp",
+		Name:   "failed to initialize BLAKE2B hash algorithm",
+	},
 }
 
-func (err IOError) Error() string {
-	return fmt.Sprintf("I/O error: %s", err.Err.Error())
+func (enum Operation) Data() OperationData {
+	p := uint(enum)
+	q := uint(len(operationDataArray))
+	if p < q {
+		return operationDataArray[p]
+	}
+	goName := fmt.Sprintf("uuid.Operation(%d)", p)
+	name := fmt.Sprintf("<unspecified uuid.Operation constant %d>", p)
+	return OperationData{GoName: goName, Name: name}
 }
 
-func (err IOError) Unwrap() error {
+func (enum Operation) GoString() string {
+	return enum.Data().GoName
+}
+
+func (enum Operation) String() string {
+	return enum.Data().Name
+}
+
+var (
+	_ fmt.GoStringer = Operation(0)
+	_ fmt.Stringer   = Operation(0)
+)
+
+// FailedOperationError indicates that a required step failed while
+// initializing a Generator or generating a UUID.
+type FailedOperationError struct {
+	Operation Operation
+	Err       error
+}
+
+func (err FailedOperationError) Error() string {
+	var buf bytes.Buffer
+	buf.Grow(128)
+	buf.WriteString(err.Operation.String())
+	buf.WriteString(": ")
+	buf.WriteString(err.Err.Error())
+	return buf.String()
+}
+
+func (err FailedOperationError) Unwrap() error {
 	return err.Err
 }
 
-var _ error = IOError{}
+var _ error = FailedOperationError{}
 
 // ParseProblem enumerates the types of problems which can be encountered while
 // parsing strings as UUIDs.
@@ -184,84 +278,17 @@ func (err ParseError) Error() string {
 
 var _ error = ParseError{}
 
-// Operation enumerates the types of operations which can fail while
-// initializing a Generator or generating a UUID.
-type Operation uint
-
-const (
-	GenerateNodeOp Operation = iota
-	ClockStorageLoadOp
-	ClockStorageStoreOp
-	InitializeBlakeHashOp
-)
-
-// OperationData holds data about a specific value of Operation.
-type OperationData struct {
-	GoName string
-	Name   string
+// IOError indicates that an I/O error or OS system call error occurred.
+type IOError struct {
+	Err error
 }
 
-var operationDataArray = [...]OperationData{
-	{
-		GoName: "GenerateNodeOp",
-		Name:   "failed to generate node identifier",
-	},
-	{
-		GoName: "ClockStorageLoadOp",
-		Name:   "failed to obtain initial clock sequence value from persistent storage",
-	},
-	{
-		GoName: "ClockStorageStoreOp",
-		Name:   "failed to store clock sequence value to persistent storage",
-	},
-	{
-		GoName: "InitializeBlakeHashOp",
-		Name:   "failed to initialize BLAKE2B hash algorithm",
-	},
+func (err IOError) Error() string {
+	return fmt.Sprintf("I/O error: %s", err.Err.Error())
 }
 
-func (enum Operation) Data() OperationData {
-	p := uint(enum)
-	q := uint(len(operationDataArray))
-	if p < q {
-		return operationDataArray[p]
-	}
-	goName := fmt.Sprintf("uuid.Operation(%d)", p)
-	name := fmt.Sprintf("<unspecified uuid.Operation constant %d>", p)
-	return OperationData{GoName: goName, Name: name}
-}
-
-func (enum Operation) GoString() string {
-	return enum.Data().GoName
-}
-
-func (enum Operation) String() string {
-	return enum.Data().Name
-}
-
-var (
-	_ fmt.GoStringer = Operation(0)
-	_ fmt.Stringer   = Operation(0)
-)
-
-// FailedOperationError indicates that a required step failed while
-// initializing a Generator or generating a UUID.
-type FailedOperationError struct {
-	Operation Operation
-	Err       error
-}
-
-func (err FailedOperationError) Error() string {
-	var buf bytes.Buffer
-	buf.Grow(128)
-	buf.WriteString(err.Operation.String())
-	buf.WriteString(": ")
-	buf.WriteString(err.Err.Error())
-	return buf.String()
-}
-
-func (err FailedOperationError) Unwrap() error {
+func (err IOError) Unwrap() error {
 	return err.Err
 }
 
-var _ error = FailedOperationError{}
+var _ error = IOError{}

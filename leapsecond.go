@@ -8,10 +8,18 @@ import (
 // seconds by which Unix time differs from the number of SI seconds since
 // 1970-01-01T00:00:00Z.
 //
-// Leap seconds cannot be predicted more than six months or so ahead of time,
-// so a proper implementation must source this data from the International
-// Earth Rotation and Reference Systems Service (IERS), or from an organization
-// which redistributes it in a timely manner such as the IETF.
+// Leap seconds cannot be predicted sooner than about six months or so ahead of
+// time, so a proper implementation must source this data from the
+// International Earth Rotation and Reference Systems Service (IERS), or from
+// an organization which redistributes it in a timely manner such as IETF or
+// IANA, and it must be updated regularly.  On Linux hosts, this data is
+// usually provided as part of your distribution's regularly updated timezone
+// database.  Other operating systems may vary.
+//
+// TODO: need a way to specify if the given seconds-since-epoch is a Unix time
+// (leap seconds skipped) or a UTC time (leap seconds counted).  This is
+// important for going in reverse, from Gregorian hectonanoseconds back to Unix
+// time.
 //
 type LeapSecondCalculator interface {
 	LeapSecondsSinceUnixEpoch(unixTime int64) int

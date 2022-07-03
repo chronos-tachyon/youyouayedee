@@ -10,6 +10,7 @@ import (
 // UUID generators based on timestamps (versions 1, 6, and 7) need some form of
 // persistent storage in order to prevent collisions.  This interface provides
 // that persistent storage.
+//
 type ClockStorage interface {
 	// Load retrieves the last known timestamp and the last known counter
 	// value for the given Node.
@@ -31,10 +32,11 @@ type ClockStorage interface {
 	// persistent storage.
 	//
 	// Implementations are free to discard the (timestamp, counter) tuples
-	// associated with any previous Node values upon receiving a Store
-	// method call with a new Node value.  However, it may be beneficial to
-	// retain one such tuple for each past Node value, so long as each such
-	// Node value is flagged as globally unique.
+	// associated with any previous node identifiers upon receiving a Store
+	// method call with a new node identifier.  However, it may be
+	// beneficial to retain one such tuple for each past node identifier,
+	// at least when such node identifiers are flagged as both IsGlobal and
+	// IsUnicast.
 	//
 	Store(Node, time.Time, uint32) error
 }
