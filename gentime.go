@@ -133,7 +133,6 @@ func (g *genTime) NewUUID() (UUID, error) {
 	switch g.ver {
 	case 1:
 		ticks = goTimeToGregorianTicks(g.lsc, now)
-
 		binary.BigEndian.PutUint32(uuid[0:4], uint32(ticks))
 		binary.BigEndian.PutUint16(uuid[4:6], uint16(ticks>>32))
 		binary.BigEndian.PutUint16(uuid[6:8], uint16(ticks>>48))
@@ -152,7 +151,6 @@ func (g *genTime) NewUUID() (UUID, error) {
 		fallthrough
 	case 8:
 		ticks = goTimeToUnixTicks(now)
-
 		binary.BigEndian.PutUint64(hashInput[0:8], ticks)
 		binary.BigEndian.PutUint32(hashInput[8:12], g.clock)
 
@@ -226,15 +224,17 @@ func goTimeToUnixTicks(now time.Time) uint64 {
 	return uint64(s64) & milliMask
 }
 
-func unixTicksToGoTime(num uint64) time.Time {
+func signExtendUnixTicks(num uint64) int64 {
 	num &= milliMask
 	if (num & milliSignBit) == milliSignBit {
 		num |= ^uint64(milliMask)
 	}
-	s64 := int64(num)
+	return int64(num)
+}
 
-	ns := (s64 % millisPerSecond) * nanosPerMilli
-	s := (s64 / millisPerSecond)
+func unixTicksToGoTime(num int64) time.Time {
+	ns := (num % millisPerSecond) * nanosPerMilli
+	s := (num / millisPerSecond)
 
 	if s < 0 && ns > 0 {
 		ns = nanosPerSecond - ns
