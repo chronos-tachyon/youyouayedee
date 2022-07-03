@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"sort"
 )
 
 func lockFile(file *os.File) error {
@@ -39,7 +38,7 @@ func listHardwareAddresses() ([]Node, error) {
 		}
 	}
 
-	sort.Sort(candidates)
+	candidates.Sort()
 
 	candidatesLen := uint(len(candidates))
 	nodes := make([]Node, candidatesLen)

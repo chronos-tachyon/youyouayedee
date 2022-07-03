@@ -6,7 +6,6 @@ package youyouayedee
 import (
 	"net"
 	"os"
-	"sort"
 	"syscall"
 )
 
@@ -37,7 +36,7 @@ func listHardwareAddresses() ([]Node, error) {
 		}
 	}
 
-	sort.Sort(candidates)
+	candidates.Sort()
 
 	candidatesLen := uint(len(candidates))
 	nodes := make([]Node, candidatesLen)
