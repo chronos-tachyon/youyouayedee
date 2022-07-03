@@ -1,6 +1,7 @@
 package youyouayedee
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -78,6 +79,10 @@ type clockRow struct {
 
 // OpenClockStorageFile constructs an instance of FileClockStorage.
 func OpenClockStorageFile(fileName string) (*FileClockStorage, error) {
+	if !lockFileSupported {
+		return nil, fmt.Errorf("clock sequence files must be locked for exclusive access, but package youyouayedee doesn't know how to lock files on your OS")
+	}
+
 	f, err := os.OpenFile(fileName, os.O_RDWR|os.O_CREATE, 0666)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open clock sequence file: %q: %w", fileName, err)
@@ -105,9 +110,13 @@ func OpenClockStorageFile(fileName string) (*FileClockStorage, error) {
 		return nil, fmt.Errorf("failed to read clock sequence data from file: %q: %w", fileName, err)
 	}
 
-	err = json.Unmarshal(raw, &cs.data)
-	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal clock sequence data from file as JSON: %q: %w", fileName, err)
+	if len(raw) == 0 {
+		cs.data = make(map[string]*clockRow)
+	} else {
+		err = json.Unmarshal(raw, &cs.data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to unmarshal clock sequence data from file as JSON: %q: %w", fileName, err)
+		}
 	}
 
 	needClose = false

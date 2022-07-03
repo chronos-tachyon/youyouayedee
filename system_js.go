@@ -8,6 +8,8 @@ import (
 	"os"
 )
 
+const lockFileSupported = false
+
 func lockFile(file *os.File) error {
 	return &os.SyscallError{
 		Syscall: "Flock",

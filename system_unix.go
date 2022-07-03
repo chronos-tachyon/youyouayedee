@@ -9,6 +9,8 @@ import (
 	"syscall"
 )
 
+const lockFileSupported = true
+
 func lockFile(file *os.File) error {
 	fd := int(file.Fd())
 	return syscall.Flock(fd, syscall.LOCK_EX)
