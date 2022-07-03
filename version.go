@@ -14,7 +14,7 @@ func (version Version) IsValid() bool {
 
 // GoString returns a developer-friendly string representation.
 func (version Version) GoString() string {
-	return fmt.Sprintf("uuid.Version(%d)", byte(version))
+	return fmt.Sprintf("youyouayedee.Version(%d)", byte(version))
 }
 
 // String returns a human-friendly string representation.

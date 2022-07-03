@@ -12,7 +12,7 @@ const Size = 16
 type UUID [Size]byte
 
 // NilUUID is the nil UUID, "00000000-0000-0000-0000-000000000000".
-var NilUUID = UUID{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+var NilUUID = UUID{}
 
 // MaxUUID is the maximum UUID, "ffffffff-ffff-ffff-ffff-ffffffffffff".
 var MaxUUID = UUID{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
@@ -46,17 +46,17 @@ func (uuid UUID) Version() Version {
 
 // GoString formats the UUID as a developer-friendly string.
 func (uuid UUID) GoString() string {
-	//  1 * "uuid.UUID{}" = 11 bytes
-	//  1 * "0x??"        =  4 bytes
-	// 15 * ", 0x??"      = 90 bytes (15 * 6)
-	//                      --------
-	//                     105 bytes
+	//  1 * "youyouayedee.UUID{}" = 19 bytes
+	//  1 * "0x??"                =  4 bytes
+	// 15 * ", 0x??"              = 90 bytes (15 * 6)
+	//                              --------
+	//                             113 bytes
 	//
 	// We round up to 128 because 2.
 
 	var tmp [128]byte
 	buf := tmp[:0]
-	buf = append(buf, "uuid.UUID{"...)
+	buf = append(buf, "youyouayedee.UUID{"...)
 	for bi := uint(0); bi < Size; bi++ {
 		if bi == 0 {
 			buf = append(buf, '0', 'x')

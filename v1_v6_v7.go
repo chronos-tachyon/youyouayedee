@@ -11,6 +11,8 @@ import (
 )
 
 type genTime struct {
+	BaseGenerator
+
 	node  Node
 	now   func() time.Time
 	lsc   LeapSecondCalculator
@@ -169,10 +171,6 @@ func (g *genTime) NewUUID() (UUID, error) {
 	uuid[8] = (uuid[8] & 0x3f) | 0x80
 
 	return uuid, nil
-}
-
-func (g *genTime) NewHashUUID(data []byte) (UUID, error) {
-	return NilUUID, MustNotHashError{Version: g.ver}
 }
 
 var _ Generator = (*genTime)(nil)

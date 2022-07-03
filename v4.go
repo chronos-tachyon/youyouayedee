@@ -5,6 +5,8 @@ import (
 )
 
 type genRandom struct {
+	BaseGenerator
+
 	rng io.Reader
 	ver Version
 }
@@ -40,10 +42,6 @@ func (g *genRandom) NewUUID() (UUID, error) {
 	uuid[6] = (uuid[6] & 0x0f) | byte(g.ver<<4)
 	uuid[8] = (uuid[8] & 0x3f) | 0x80
 	return uuid, nil
-}
-
-func (g *genRandom) NewHashUUID(data []byte) (UUID, error) {
-	return NilUUID, MustNotHashError{Version: 4}
 }
 
 var _ Generator = (*genRandom)(nil)

@@ -8,6 +8,8 @@ import (
 )
 
 type genHash struct {
+	BaseGenerator
+
 	ns     UUID
 	fn     func() hash.Hash
 	ver    Version
@@ -46,10 +48,6 @@ func NewHashGenerator(version Version, factory func() hash.Hash, o GeneratorOpti
 
 	h := factory()
 	return &genHash{ns: ns, fn: factory, ver: version, busy: 0, hasher: h}, nil
-}
-
-func (g *genHash) NewUUID() (UUID, error) {
-	return NilUUID, MustHashError{Version: g.ver}
 }
 
 func (g *genHash) NewHashUUID(data []byte) (UUID, error) {

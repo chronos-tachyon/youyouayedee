@@ -84,29 +84,70 @@ func (err InvalidNamespaceError) Error() string {
 
 var _ error = InvalidNamespaceError{}
 
-// MustNotHashError indicates that a Generator does not support the NewHashUUID
-// method.
-type MustNotHashError struct {
-	Version Version
+// Method enumerates the Generator methods which do not need to be implemented.
+type Method uint
+
+const (
+	MethodNewUUID Method = iota
+	MethodNewHashUUID
+)
+
+// MethodData holds data about a specific value of Method.
+type MethodData struct {
+	GoName string
+	Name   string
 }
 
-func (err MustNotHashError) Error() string {
-	return fmt.Sprintf("this generator for %v UUIDs only supports NewUUID, not NewHashUUID", err.Version)
+var methodDataArray = [...]MethodData{
+	{
+		GoName: "MethodNewUUID",
+		Name:   "NewUUID",
+	},
+	{
+		GoName: "MethodNewHashUUID",
+		Name:   "NewHashUUID",
+	},
 }
 
-var _ error = MustNotHashError{}
-
-// MustHashError indicates that a Generator does not support the NewUUID
-// method.
-type MustHashError struct {
-	Version Version
+func (enum Method) Data() MethodData {
+	p := uint(enum)
+	q := uint(len(methodDataArray))
+	if p < q {
+		return methodDataArray[p]
+	}
+	goName := fmt.Sprintf("youyouayedee.Method(%d)", p)
+	name := fmt.Sprintf("<unspecified youyouayedee.Method constant %d>", p)
+	return MethodData{GoName: goName, Name: name}
 }
 
-func (err MustHashError) Error() string {
-	return fmt.Sprintf("this generator for %v UUIDs only supports NewHashUUID, not NewUUID", err.Version)
+func (enum Method) GoString() string {
+	return enum.Data().GoName
 }
 
-var _ error = MustHashError{}
+func (enum Method) String() string {
+	return enum.Data().Name
+}
+
+var (
+	_ fmt.GoStringer = Method(0)
+	_ fmt.Stringer   = Method(0)
+)
+
+// MethodNotSupportedError indicates that the called Generator method is not
+// supported by the implementation.
+type MethodNotSupportedError struct {
+	Method Method
+}
+
+func (err MethodNotSupportedError) Error() string {
+	var buf bytes.Buffer
+	buf.Grow(128)
+	buf.WriteString("generator does not implement method ")
+	buf.WriteString(err.Method.String())
+	return buf.String()
+}
+
+var _ error = MethodNotSupportedError{}
 
 // Operation enumerates the operations which can fail while initializing a
 // Generator or generating a UUID.
@@ -150,8 +191,8 @@ func (enum Operation) Data() OperationData {
 	if p < q {
 		return operationDataArray[p]
 	}
-	goName := fmt.Sprintf("uuid.Operation(%d)", p)
-	name := fmt.Sprintf("<unspecified uuid.Operation constant %d>", p)
+	goName := fmt.Sprintf("youyouayedee.Operation(%d)", p)
+	name := fmt.Sprintf("<unspecified youyouayedee.Operation constant %d>", p)
 	return OperationData{GoName: goName, Name: name}
 }
 
@@ -231,8 +272,8 @@ func (enum ParseProblem) Data() ParseProblemData {
 	if p < q {
 		return parseProblemDataArray[p]
 	}
-	goName := fmt.Sprintf("uuid.ParseProblem(%d)", p)
-	name := fmt.Sprintf("<unspecified uuid.ParseProblem constant %d>", p)
+	goName := fmt.Sprintf("youyouayedee.ParseProblem(%d)", p)
+	name := fmt.Sprintf("<unspecified youyouayedee.ParseProblem constant %d>", p)
 	format := ""
 	return ParseProblemData{GoName: goName, Name: name, Format: format}
 }

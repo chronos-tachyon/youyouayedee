@@ -131,6 +131,24 @@ func NewGenerator(version Version, o GeneratorOptions) (Generator, error) {
 	return nil, UnsupportedVersionError{Version: version}
 }
 
+// BaseGenerator is a dummy Generator implementation that you can embed into
+// your Generator implementation's struct so that your Generator will have
+// default implementations of all methods that simply return
+// MethodNotSupportedError.
+//
+// This is a very easy way to future-proof your code for resiliency during
+// future major version updates affecting the Generator interface.
+//
+type BaseGenerator struct{}
+
+func (BaseGenerator) NewUUID() (UUID, error) {
+	return NilUUID, MethodNotSupportedError{Method: MethodNewUUID}
+}
+
+func (BaseGenerator) NewHashUUID(data []byte) (UUID, error) {
+	return NilUUID, MethodNotSupportedError{Method: MethodNewHashUUID}
+}
+
 // GeneratorFactory is an interface for constructing Generator instances.
 //
 // It is used to create hooks placed in GeneratorsByVersion, in order to modify

@@ -10,7 +10,7 @@ import (
 type Node [6]byte
 
 // NilNode represents the invalid nil node identifier.
-var NilNode = Node{0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
+var NilNode = Node{}
 
 // IsZero returns true iff this Node is the nil node identifier.
 func (node Node) IsZero() bool {
@@ -60,7 +60,7 @@ func (node Node) IsMulticast() bool {
 func (node Node) GoString() string {
 	var tmp [64]byte
 	buf := tmp[:0]
-	buf = append(buf, "uuid.Node{"...)
+	buf = append(buf, "youyouayedee.Node{"...)
 	for bi := uint(0); bi < 6; bi++ {
 		if bi == 0 {
 			buf = append(buf, '0', 'x')

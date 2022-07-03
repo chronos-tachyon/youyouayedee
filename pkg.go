@@ -1,6 +1,11 @@
 // Package youyouayedee provides tools for working with Universally Unique
 // Identifiers (UUIDs).
 //
+// (A note for non-native English speakers and others confused by the package
+// name: it is a phonetic spelling of the acronym "UUID".  Since Go package
+// names get imported into the caller's namespace, I didn't want to use the
+// name "uuid" because that's a very common variable name for UUID values.)
+//
 // There are 5 well-known UUID versions defined in RFC 4122:
 //
 // Version 1 UUIDs are based on the current time (measured as hectonanoseconds
