@@ -1,8 +1,7 @@
 package youyouayedee
 
 import (
-	"crypto/md5"
-	"crypto/sha1"
+	"hash"
 	"io"
 	"time"
 )
@@ -86,6 +85,14 @@ type GeneratorOptions struct {
 	//
 	Namespace UUID
 
+	// HashFactory is a callback to produce new instances of hash.Hash on demand.
+	//
+	// Only hash-based UUID generators for V8 UUIDs use this field, and for
+	// that case the field is mandatory.  V3 and V5 UUID generators ignore
+	// this field and always use md5.New or sha1.New, respectively.
+	//
+	HashFactory func() hash.Hash
+
 	// ForceRandomNode controls the behavior of GenerateNode when a node
 	// identifier is required but Node is the zero value.
 	//
@@ -118,11 +125,11 @@ func NewGenerator(version Version, o GeneratorOptions) (Generator, error) {
 	case 1:
 		return NewTimeGenerator(1, o)
 	case 3:
-		return NewHashGenerator(3, md5.New, o)
+		return NewHashGenerator(3, o)
 	case 4:
 		return NewRandomGenerator(4, o)
 	case 5:
-		return NewHashGenerator(5, sha1.New, o)
+		return NewHashGenerator(5, o)
 	case 6:
 		return NewTimeGenerator(6, o)
 	case 7:

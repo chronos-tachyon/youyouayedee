@@ -1,12 +1,12 @@
 package youyouayedee
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/fs"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -169,7 +169,7 @@ func (cs *FileClockStorage) Store(node Node, t time.Time, c uint32) error {
 	// generated at random each time the application runs.
 	//
 	for rowKey := range cs.data {
-		if rowKey != key && len(rowKey) >= 2 && bytes.ContainsAny(rowKey[1], "37bf") {
+		if rowKey != key && len(rowKey) >= 2 && strings.ContainsRune("37bf", rune(rowKey[1])) {
 			delete(cs.data, rowKey)
 		}
 	}

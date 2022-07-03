@@ -20,11 +20,11 @@ type genHash struct {
 // NewHashGenerator initializes a new Generator that produces hash-based UUIDs.
 //
 // Versions 3, 5, and 8 are supported.  GeneratorOptions must specify a valid,
-// non-nil UUID in the Namespace field.  For versions 3 or 5, the factory
-// argument is ignored; md5.New or sha1.New is always used for those respective
-// UUID versions.  For version 8, the factory argument must be non-nil.
+// non-nil UUID in the Namespace field.  For version 8 only, GeneratorOptions
+// must also specify a valid, non-nil HashFactory callback.
 //
-func NewHashGenerator(version Version, factory func() hash.Hash, o GeneratorOptions) (Generator, error) {
+func NewHashGenerator(version Version, o GeneratorOptions) (Generator, error) {
+	var factory func() hash.Hash
 	switch version {
 	case 3:
 		factory = md5.New
@@ -33,6 +33,7 @@ func NewHashGenerator(version Version, factory func() hash.Hash, o GeneratorOpti
 		factory = sha1.New
 
 	case 8:
+		factory = o.HashFactory
 		if factory == nil {
 			return nil, NilHashFactoryError{Version: version}
 		}
