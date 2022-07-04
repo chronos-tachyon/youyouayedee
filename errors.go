@@ -84,55 +84,6 @@ func (err InvalidNamespaceError) Error() string {
 
 var _ error = InvalidNamespaceError{}
 
-// Method enumerates the Generator methods which do not need to be implemented.
-type Method uint
-
-const (
-	MethodNewUUID Method = iota
-	MethodNewHashUUID
-)
-
-// MethodData holds data about a specific value of Method.
-type MethodData struct {
-	GoName string
-	Name   string
-}
-
-var methodDataArray = [...]MethodData{
-	{
-		GoName: "MethodNewUUID",
-		Name:   "NewUUID",
-	},
-	{
-		GoName: "MethodNewHashUUID",
-		Name:   "NewHashUUID",
-	},
-}
-
-func (enum Method) Data() MethodData {
-	p := uint(enum)
-	q := uint(len(methodDataArray))
-	if p < q {
-		return methodDataArray[p]
-	}
-	goName := fmt.Sprintf("youyouayedee.Method(%d)", p)
-	name := fmt.Sprintf("<unspecified youyouayedee.Method constant %d>", p)
-	return MethodData{GoName: goName, Name: name}
-}
-
-func (enum Method) GoString() string {
-	return enum.Data().GoName
-}
-
-func (enum Method) String() string {
-	return enum.Data().Name
-}
-
-var (
-	_ fmt.GoStringer = Method(0)
-	_ fmt.Stringer   = Method(0)
-)
-
 // MethodNotSupportedError indicates that the called Generator method is not
 // supported by the implementation.
 type MethodNotSupportedError struct {
@@ -148,66 +99,6 @@ func (err MethodNotSupportedError) Error() string {
 }
 
 var _ error = MethodNotSupportedError{}
-
-// Operation enumerates the operations which can fail while initializing a
-// Generator or generating a UUID.
-type Operation uint
-
-const (
-	GenerateNodeOp Operation = iota
-	ClockStorageLoadOp
-	ClockStorageStoreOp
-	InitializeBlakeHashOp
-)
-
-// OperationData holds data about a specific value of Operation.
-type OperationData struct {
-	GoName string
-	Name   string
-}
-
-var operationDataArray = [...]OperationData{
-	{
-		GoName: "GenerateNodeOp",
-		Name:   "failed to generate node identifier",
-	},
-	{
-		GoName: "ClockStorageLoadOp",
-		Name:   "failed to obtain initial clock sequence value from persistent storage",
-	},
-	{
-		GoName: "ClockStorageStoreOp",
-		Name:   "failed to store clock sequence value to persistent storage",
-	},
-	{
-		GoName: "InitializeBlakeHashOp",
-		Name:   "failed to initialize BLAKE2B hash algorithm",
-	},
-}
-
-func (enum Operation) Data() OperationData {
-	p := uint(enum)
-	q := uint(len(operationDataArray))
-	if p < q {
-		return operationDataArray[p]
-	}
-	goName := fmt.Sprintf("youyouayedee.Operation(%d)", p)
-	name := fmt.Sprintf("<unspecified youyouayedee.Operation constant %d>", p)
-	return OperationData{GoName: goName, Name: name}
-}
-
-func (enum Operation) GoString() string {
-	return enum.Data().GoName
-}
-
-func (enum Operation) String() string {
-	return enum.Data().Name
-}
-
-var (
-	_ fmt.GoStringer = Operation(0)
-	_ fmt.Stringer   = Operation(0)
-)
 
 // FailedOperationError indicates that a required step failed while
 // initializing a Generator or generating a UUID.
@@ -231,96 +122,51 @@ func (err FailedOperationError) Unwrap() error {
 
 var _ error = FailedOperationError{}
 
-// ParseProblem enumerates the types of problems which can be encountered while
-// parsing strings as UUIDs.
-type ParseProblem uint
-
-const (
-	UnexpectedCharacter ParseProblem = iota
-	WrongVariant
-	WrongLength
-	WrongBinaryLength
-)
-
-// ParseProblemData holds data about a specific value of ParseProblem.
-type ParseProblemData struct {
-	GoName string
-	Name   string
-	Format string
-}
-
-var parseProblemDataArray = [...]ParseProblemData{
-	{
-		GoName: "UnexpectedCharacter",
-		Name:   "unexpected character",
-		Format: "unexpected character at index %d",
-	},
-	{
-		GoName: "WrongVariant",
-		Name:   "wrong UUID variant",
-		Format: "unexpected value %02x for UUID variant byte; should start with '8', '9', 'a', or 'b'",
-	},
-	{
-		GoName: "WrongLength",
-		Name:   "wrong input length",
-		Format: "unexpected input length %d; should be 0, 32, 36, 38, or 41",
-	},
-	{
-		GoName: "WrongBinaryLength",
-		Name:   "wrong binary data input length",
-		Format: "unexpected input length %d for binary data; should be 0, 16, 32, 36, 38, or 41",
-	},
-}
-
-func (enum ParseProblem) Data() ParseProblemData {
-	p := uint(enum)
-	q := uint(len(parseProblemDataArray))
-	if p < q {
-		return parseProblemDataArray[p]
-	}
-	goName := fmt.Sprintf("youyouayedee.ParseProblem(%d)", p)
-	name := fmt.Sprintf("<unspecified youyouayedee.ParseProblem constant %d>", p)
-	format := ""
-	return ParseProblemData{GoName: goName, Name: name, Format: format}
-}
-
-func (enum ParseProblem) GoString() string {
-	return enum.Data().GoName
-}
-
-func (enum ParseProblem) String() string {
-	return enum.Data().Name
-}
-
-var (
-	_ fmt.GoStringer = ParseProblem(0)
-	_ fmt.Stringer   = ParseProblem(0)
-)
-
 // ParseError indicates that the input string could not be parsed as a UUID.
 type ParseError struct {
-	Input       string
-	Problem     ParseProblem
-	Args        []interface{}
-	Index       uint
-	Length      uint
-	VariantByte byte
+	Input      []byte
+	Problem    ParseProblem
+	Args       []interface{}
+	Index      uint
+	ExpectByte byte
+	ActualByte byte
 }
 
 func (err ParseError) Error() string {
-	data := err.Problem.Data()
-
-	var buf bytes.Buffer
-	buf.Grow(128)
-	buf.WriteString("failed to parse ")
-	buf.WriteString(strconv.Quote(err.Input))
-	buf.WriteString(" as UUID: ")
-	if data.Format == "" {
-		buf.WriteString(data.Name)
-	} else {
-		fmt.Fprintf(&buf, data.Format, err.Args)
+	inputIsSafe := true
+	inputLen := uint(len(err.Input))
+	for ii := uint(0); ii < inputLen; ii++ {
+		ch := err.Input[ii]
+		if ch < 0x20 || ch >= 0x7f {
+			inputIsSafe = false
+			break
+		}
 	}
-	return buf.String()
+
+	buf := make([]byte, 0, 128)
+	buf = append(buf, "failed to parse "...)
+	if inputIsSafe && inputLen != 16 {
+		buf = strconv.AppendQuote(buf, string(err.Input))
+	} else {
+		for ii := uint(0); ii < inputLen; ii++ {
+			if ii != 0 {
+				buf = append(buf, ':')
+			}
+			buf = appendHexByte(buf, err.Input[ii])
+		}
+	}
+	buf = append(buf, " as UUID: "...)
+	var formatted string
+	data := err.Problem.Data()
+	if data.Format == "" {
+		buf = append(buf, data.Name...)
+		buf = append(buf, "; "...)
+		formatted = fmt.Sprintf("%#v", err.Args)
+	} else {
+		formatted = fmt.Sprintf(data.Format, err.Args...)
+	}
+	buf = append(buf, formatted...)
+	return string(buf)
 }
 
 var _ error = ParseError{}
@@ -339,3 +185,7 @@ func (err IOError) Unwrap() error {
 }
 
 var _ error = IOError{}
+
+func mkargs(args ...interface{}) []interface{} {
+	return args
+}

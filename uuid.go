@@ -3,7 +3,6 @@ package youyouayedee
 import (
 	"encoding/binary"
 	"fmt"
-	"strings"
 	"time"
 )
 
@@ -112,87 +111,14 @@ func (uuid UUID) AppendTo(out []byte) []byte {
 
 // Parse parses a UUID from a string.
 func Parse(str string) (UUID, error) {
-	if strings.ContainsAny(str, upperCase) {
-		str = strings.ToLower(str)
-	}
-
-	var requiredByteIndices []uint
-	var requiredByteValues []byte
-	var requiredByteCount uint
-	var a, b, c, d, e uint
-	var okToParse bool
-
-	strLen := uint(len(str))
-	switch strLen {
-	case 0:
-		return NilUUID, nil
-
-	case 3:
-		if str == "nil" {
-			return NilUUID, nil
-		}
-		if str == "max" {
-			return MaxUUID, nil
-		}
-
-	case 4:
-		if str == "null" {
-			return NilUUID, nil
-		}
-
-	case 32:
-		a, b, c, d, e = 0, 8, 12, 16, 20
-		okToParse = true
-
-	case 36:
-		requiredByteIndices = []uint{8, 13, 18, 23}
-		requiredByteValues = []byte{'-', '-', '-', '-'}
-		requiredByteCount = 4
-		a, b, c, d, e = 0, 9, 14, 19, 24
-		okToParse = true
-
-	case 38:
-		requiredByteIndices = []uint{0, 9, 14, 19, 24, 37}
-		requiredByteValues = []byte{'{', '-', '-', '-', '-', '}'}
-		requiredByteCount = 6
-		a, b, c, d, e = 1, 10, 15, 20, 25
-		okToParse = true
-
-	case 41:
-		requiredByteIndices = []uint{0, 1, 2, 3, 4, 5, 6, 7, 8, 17, 22, 27, 32}
-		requiredByteValues = []byte{'u', 'r', 'n', ':', 'u', 'u', 'i', 'd', ':', '-', '-', '-', '-'}
-		requiredByteCount = 13
-		a, b, c, d, e = 9, 18, 23, 28, 33
-		okToParse = true
-	}
-
-	if okToParse {
-		for xi := uint(0); xi < requiredByteCount; xi++ {
-			si := requiredByteIndices[xi]
-			ch := requiredByteValues[xi]
-			if str[si] != ch {
-				return NilUUID, ParseError{
-					Input:   str,
-					Problem: UnexpectedCharacter,
-					Args:    []interface{}{si},
-					Index:   si,
-				}
-			}
-		}
-		return parseImpl(str, a, b, c, d, e)
-	}
-
-	return NilUUID, ParseError{
-		Input:   str,
-		Problem: WrongLength,
-		Args:    []interface{}{strLen},
-		Length:  strLen,
-	}
+	var tmp [64]byte
+	input := append(tmp[:0], str...)
+	return parse(input, false)
 }
 
 // Parse parses a UUID from a []byte.
 func ParseBytes(buf []byte) (UUID, error) {
-	return Parse(string(buf))
+	return parse(buf, true)
 }
 
 // Must is a panic wrapper for Parse, NewUUID, et al.

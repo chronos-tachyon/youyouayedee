@@ -1,9 +1,11 @@
 package youyouayedee
 
 import (
+	"bytes"
 	"crypto/rand"
 	"errors"
 	"io"
+	"strconv"
 )
 
 const upperCase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
@@ -51,18 +53,19 @@ func appendHexByte(out []byte, value byte) []byte {
 	return append(out, hexEncode[hi], hexEncode[lo])
 }
 
-func decodeHexByte(str string, si uint) (bool, byte) {
-	hi := hexDecode[str[si]]
-	lo := hexDecode[str[si+1]]
-	if hi == 0xff || lo == 0xff {
-		return false, 0
+func decodeHexByte(input []byte, ii uint) (bool, byte) {
+	hi := hexDecode[input[ii]]
+	lo := hexDecode[input[ii+1]]
+	if hi < 0x10 && lo < 0x10 {
+		value := (hi << 4) | lo
+		return true, value
 	}
-	value := (hi << 4) | lo
-	return true, value
+	return false, 0
 }
 
-func isHex(ch byte) bool {
-	return hexDecode[ch] != 0xff
+func isHex(input []byte, ii uint) bool {
+	hex := hexDecode[input[ii]]
+	return hex < 0x10
 }
 
 func readRandom(rng io.Reader, out []byte) error {
@@ -79,49 +82,151 @@ func isClockStorageUnavailable(err error) bool {
 	return errors.Is(err, &unavailable)
 }
 
-func parseImpl(str string, a, b, c, d, e uint) (UUID, error) {
-	strIndex := [Size]uint{
-		a + 0x0, a + 0x2, a + 0x4, a + 0x6,
-		b + 0x0, b + 0x2, c + 0x0, c + 0x2,
-		d + 0x0, d + 0x2, e + 0x0, e + 0x2,
-		e + 0x4, e + 0x6, e + 0x8, e + 0xa,
+func parse(input []byte, isBytes bool) (UUID, error) {
+	var output UUID
+	var requiredByteIndices []uint
+	var requiredByteValues []byte
+	var requiredByteCount uint
+	var a, b, c, d, e uint
+	var okToParse, checkParse, allZeroes, allOnes bool
+
+	inputLen := uint(len(input))
+
+	if bytes.ContainsAny(input, upperCase) {
+		dupe := make([]byte, inputLen)
+		copy(dupe, input)
+		input = bytes.ToLower(dupe)
 	}
 
-	var uuid UUID
-	var ok [Size]bool
-	for bi := uint(0); bi < Size; bi++ {
-		si := strIndex[bi]
-		ok[bi], uuid[bi] = decodeHexByte(str, si)
-	}
+	switch inputLen {
+	case 0:
+		return NilUUID, nil
 
-	allZeroes := true
-	allOnes := true
-	for bi := uint(0); bi < Size; bi++ {
-		if !ok[bi] {
-			si := strIndex[bi]
-			if isHex(str[si]) {
-				si++
+	case 3:
+		if string(input) == "nil" {
+			return NilUUID, nil
+		}
+		if string(input) == "max" {
+			return MaxUUID, nil
+		}
+
+	case 4:
+		if string(input) == "null" {
+			return NilUUID, nil
+		}
+
+	case 16:
+		if isBytes {
+			copy(output[:], input)
+			allZeroes = true
+			allOnes = true
+			for oi := uint(0); oi < Size; oi++ {
+				allZeroes = allZeroes && (output[oi] == 0x00)
+				allOnes = allOnes && (output[oi] == 0xff)
 			}
-			return NilUUID, ParseError{
-				Input:   str,
-				Problem: UnexpectedCharacter,
-				Args:    []interface{}{si},
-				Index:   si,
+			checkParse = true
+		}
+
+	case 32:
+		a, b, c, d, e = 0, 8, 12, 16, 20
+		okToParse = true
+
+	case 36:
+		requiredByteIndices = []uint{8, 13, 18, 23}
+		requiredByteValues = []byte{'-', '-', '-', '-'}
+		requiredByteCount = 4
+		a, b, c, d, e = 0, 9, 14, 19, 24
+		okToParse = true
+
+	case 38:
+		requiredByteIndices = []uint{0, 9, 14, 19, 24, 37}
+		requiredByteValues = []byte{'{', '-', '-', '-', '-', '}'}
+		requiredByteCount = 6
+		a, b, c, d, e = 1, 10, 15, 20, 25
+		okToParse = true
+
+	case 45:
+		requiredByteIndices = []uint{0, 1, 2, 3, 4, 5, 6, 7, 8, 17, 22, 27, 32}
+		requiredByteValues = []byte{'u', 'r', 'n', ':', 'u', 'u', 'i', 'd', ':', '-', '-', '-', '-'}
+		requiredByteCount = 13
+		a, b, c, d, e = 9, 18, 23, 28, 33
+		okToParse = true
+	}
+
+	if okToParse {
+		for xi := uint(0); xi < requiredByteCount; xi++ {
+			ii := requiredByteIndices[xi]
+			ch := requiredByteValues[xi]
+			if input[ii] != ch {
+				return NilUUID, ParseError{
+					Input:      input,
+					Problem:    UnexpectedCharacter,
+					Args:       mkargs(input[ii], ii, strconv.QuoteRune(rune(ch))),
+					Index:      ii,
+					ExpectByte: ch,
+					ActualByte: input[ii],
+				}
 			}
 		}
-		allZeroes = allZeroes && (uuid[bi] == 0x00)
-		allOnes = allOnes && (uuid[bi] == 0xff)
+
+		inputIndex := [Size]uint{
+			a + 0x0, a + 0x2, a + 0x4, a + 0x6,
+			b + 0x0, b + 0x2, c + 0x0, c + 0x2,
+			d + 0x0, d + 0x2, e + 0x0, e + 0x2,
+			e + 0x4, e + 0x6, e + 0x8, e + 0xa,
+		}
+
+		var ok [Size]bool
+		for oi := uint(0); oi < Size; oi++ {
+			ok[oi], output[oi] = decodeHexByte(input, inputIndex[oi])
+		}
+
+		allZeroes = true
+		allOnes = true
+		for oi := uint(0); oi < Size; oi++ {
+			if !ok[oi] {
+				ii := inputIndex[oi]
+				if isHex(input, ii) {
+					ii++
+				}
+				return NilUUID, ParseError{
+					Input:      input,
+					Problem:    UnexpectedCharacter,
+					Args:       mkargs(input[ii], ii, "hex digit [0-9a-f]"),
+					Index:      ii,
+					ActualByte: input[ii],
+				}
+			}
+			allZeroes = allZeroes && (output[oi] == 0x00)
+			allOnes = allOnes && (output[oi] == 0xff)
+		}
+
+		checkParse = true
 	}
 
-	if !allZeroes && !allOnes && (uuid[8]&0xc0) != 0x80 {
-		vb := uuid[8]
+	if checkParse {
+		actualVB := output[8]
+		expectVB := (actualVB & 0x3f) | 0x80
+		if actualVB == expectVB || allZeroes || allOnes {
+			return output, nil
+		}
+
 		return NilUUID, ParseError{
-			Input:       str,
-			Problem:     WrongVariant,
-			Args:        []interface{}{vb},
-			VariantByte: vb,
+			Input:      input,
+			Problem:    WrongVariant,
+			Args:       mkargs(actualVB, expectVB),
+			ExpectByte: expectVB,
+			ActualByte: actualVB,
 		}
 	}
 
-	return uuid, nil
+	problem := WrongLength
+	if isBytes {
+		problem = WrongBinaryLength
+	}
+	return NilUUID, ParseError{
+		Input:   input,
+		Problem: problem,
+		Args:    mkargs(inputLen),
+	}
 }
