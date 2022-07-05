@@ -74,11 +74,14 @@ func readRandom(rng io.Reader, out []byte) error {
 	}
 
 	_, err := io.ReadFull(rng, out)
-	return err
+	if err != nil {
+		return ErrOperationFailed{Operation: ReadRandomOp, Err: err}
+	}
+	return nil
 }
 
-func isClockStorageUnavailable(err error) bool {
-	var unavailable ClockStorageUnavailableError
+func isErrClockNotFound(err error) bool {
+	var unavailable ErrClockNotFound
 	return errors.Is(err, &unavailable)
 }
 
@@ -158,7 +161,7 @@ func parse(input []byte, isBytes bool) (UUID, error) {
 			ii := requiredByteIndices[xi]
 			ch := requiredByteValues[xi]
 			if input[ii] != ch {
-				return NilUUID, ParseError{
+				return NilUUID, ErrParseFailed{
 					Input:      input,
 					Problem:    UnexpectedCharacter,
 					Args:       mkargs(input[ii], ii, strconv.QuoteRune(rune(ch))),
@@ -189,7 +192,7 @@ func parse(input []byte, isBytes bool) (UUID, error) {
 				if isHex(input, ii) {
 					ii++
 				}
-				return NilUUID, ParseError{
+				return NilUUID, ErrParseFailed{
 					Input:      input,
 					Problem:    UnexpectedCharacter,
 					Args:       mkargs(input[ii], ii, "hex digit [0-9a-f]"),
@@ -211,7 +214,7 @@ func parse(input []byte, isBytes bool) (UUID, error) {
 			return output, nil
 		}
 
-		return NilUUID, ParseError{
+		return NilUUID, ErrParseFailed{
 			Input:      input,
 			Problem:    WrongVariant,
 			Args:       mkargs(actualVB, expectVB),
@@ -224,9 +227,13 @@ func parse(input []byte, isBytes bool) (UUID, error) {
 	if isBytes {
 		problem = WrongBinaryLength
 	}
-	return NilUUID, ParseError{
+	return NilUUID, ErrParseFailed{
 		Input:   input,
 		Problem: problem,
 		Args:    mkargs(inputLen),
 	}
+}
+
+func mkargs(args ...interface{}) []interface{} {
+	return args
 }

@@ -137,7 +137,7 @@ var (
 // Decode breaks down a UUID into its component fields.
 //
 // Only V1 and V6 UUIDs make use of the LeapSecondCalculator argument.  If it
-// is required but nil, then a DummyLeapSecondCalculator will be used instead.
+// is required but nil, then a LeapSecondCalculatorDummy will be used instead.
 //
 func Decode(uuid UUID, lsc LeapSecondCalculator) Breakdown {
 	var breakdown Breakdown
@@ -154,7 +154,7 @@ func Decode(uuid UUID, lsc LeapSecondCalculator) Breakdown {
 	var scratch [8]byte
 
 	if lsc == nil {
-		lsc = DummyLeapSecondCalculator{}
+		lsc = LeapSecondCalculatorDummy{}
 	}
 
 	breakdown.Valid = true

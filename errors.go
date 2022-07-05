@@ -6,37 +6,47 @@ import (
 	"strconv"
 )
 
-// ClockStorageUnavailableError indicates that the ClockStorage Load method was
-// unable to provide a (last known timestamp, last known counter value) tuple
-// for the given Node.
-type ClockStorageUnavailableError struct{}
+// ErrClockNotFound indicates that the ClockStorage Load method was unable to
+// provide a (last known timestamp, last known counter value) tuple for the
+// given Node.
+type ErrClockNotFound struct{}
 
-func (ClockStorageUnavailableError) Error() string {
-	return "ClockStorage is not available"
+func (ErrClockNotFound) Error() string {
+	return "clock data not found"
 }
 
-var _ error = ClockStorageUnavailableError{}
+var _ error = ErrClockNotFound{}
 
-// UnsupportedVersionError indicates that NewGenerator does not know how to
+// ErrLockNotSupported indicates that file locking is not supported on the
+// current OS platform.
+type ErrLockNotSupported struct{}
+
+func (ErrLockNotSupported) Error() string {
+	return "file locking not supported"
+}
+
+var _ error = ErrLockNotSupported{}
+
+// ErrVersionNotSupported indicates that NewGenerator does not know how to
 // generate UUIDs of the given Version.
-type UnsupportedVersionError struct {
+type ErrVersionNotSupported struct {
 	Version Version
 }
 
-func (err UnsupportedVersionError) Error() string {
+func (err ErrVersionNotSupported) Error() string {
 	return fmt.Sprintf("%v UUIDs are not supported", err.Version)
 }
 
-var _ error = UnsupportedVersionError{}
+var _ error = ErrVersionNotSupported{}
 
-// MismatchedVersionError indicates that a Generator constructor is not
-// implemented for UUIDs of the given Version.
-type MismatchedVersionError struct {
+// ErrVersionMismatch indicates that a Generator constructor is not implemented
+// for UUIDs of the given Version.
+type ErrVersionMismatch struct {
 	Requested Version
 	Expected  []Version
 }
 
-func (err MismatchedVersionError) Error() string {
+func (err ErrVersionMismatch) Error() string {
 	buf := make([]byte, 0, 64)
 	buf = append(buf, err.Requested.String()...)
 	buf = append(buf, " UUIDs are not supported by this generator; only "...)
@@ -57,40 +67,40 @@ func (err MismatchedVersionError) Error() string {
 	return string(buf)
 }
 
-var _ error = MismatchedVersionError{}
+var _ error = ErrVersionMismatch{}
 
-// NilHashFactoryError indicates that a Generator requires a hash.Hash factory
+// ErrHashFactoryIsNil indicates that a Generator requires a hash.Hash factory
 // callback.
-type NilHashFactoryError struct {
+type ErrHashFactoryIsNil struct {
 	Version Version
 }
 
-func (err NilHashFactoryError) Error() string {
+func (err ErrHashFactoryIsNil) Error() string {
 	return fmt.Sprintf("this generator for %v UUIDs requires a hash.Hash factory callback, but factory is nil", err.Version)
 }
 
-var _ error = NilHashFactoryError{}
+var _ error = ErrHashFactoryIsNil{}
 
-// InvalidNamespaceError indicates that a Generator requires a valid namespace
+// ErrNamespaceNotValid indicates that a Generator requires a valid namespace
 // UUID.
-type InvalidNamespaceError struct {
+type ErrNamespaceNotValid struct {
 	Version   Version
 	Namespace UUID
 }
 
-func (err InvalidNamespaceError) Error() string {
+func (err ErrNamespaceNotValid) Error() string {
 	return fmt.Sprintf("this generator for %v UUIDs requires a valid namespace UUID, but Namespace %v is not valid", err.Version, err.Namespace)
 }
 
-var _ error = InvalidNamespaceError{}
+var _ error = ErrNamespaceNotValid{}
 
-// MethodNotSupportedError indicates that the called Generator method is not
+// ErrMethodNotSupported indicates that the called Generator method is not
 // supported by the implementation.
-type MethodNotSupportedError struct {
+type ErrMethodNotSupported struct {
 	Method Method
 }
 
-func (err MethodNotSupportedError) Error() string {
+func (err ErrMethodNotSupported) Error() string {
 	var buf bytes.Buffer
 	buf.Grow(128)
 	buf.WriteString("generator does not implement method ")
@@ -98,16 +108,16 @@ func (err MethodNotSupportedError) Error() string {
 	return buf.String()
 }
 
-var _ error = MethodNotSupportedError{}
+var _ error = ErrMethodNotSupported{}
 
-// FailedOperationError indicates that a required step failed while
-// initializing a Generator or generating a UUID.
-type FailedOperationError struct {
+// ErrOperationFailed indicates that a required step failed while initializing
+// a Generator or generating a UUID.
+type ErrOperationFailed struct {
 	Operation Operation
 	Err       error
 }
 
-func (err FailedOperationError) Error() string {
+func (err ErrOperationFailed) Error() string {
 	var buf bytes.Buffer
 	buf.Grow(128)
 	buf.WriteString(err.Operation.String())
@@ -116,14 +126,15 @@ func (err FailedOperationError) Error() string {
 	return buf.String()
 }
 
-func (err FailedOperationError) Unwrap() error {
+func (err ErrOperationFailed) Unwrap() error {
 	return err.Err
 }
 
-var _ error = FailedOperationError{}
+var _ error = ErrOperationFailed{}
 
-// ParseError indicates that the input string could not be parsed as a UUID.
-type ParseError struct {
+// ErrParseFailed indicates that the input string could not be parsed as a
+// UUID.
+type ErrParseFailed struct {
 	Input      []byte
 	Problem    ParseProblem
 	Args       []interface{}
@@ -132,7 +143,7 @@ type ParseError struct {
 	ActualByte byte
 }
 
-func (err ParseError) Error() string {
+func (err ErrParseFailed) Error() string {
 	inputIsSafe := true
 	inputLen := uint(len(err.Input))
 	for ii := uint(0); ii < inputLen; ii++ {
@@ -169,23 +180,4 @@ func (err ParseError) Error() string {
 	return string(buf)
 }
 
-var _ error = ParseError{}
-
-// IOError indicates that an I/O error or OS system call error occurred.
-type IOError struct {
-	Err error
-}
-
-func (err IOError) Error() string {
-	return fmt.Sprintf("I/O error: %s", err.Err.Error())
-}
-
-func (err IOError) Unwrap() error {
-	return err.Err
-}
-
-var _ error = IOError{}
-
-func mkargs(args ...interface{}) []interface{} {
-	return args
-}
+var _ error = ErrParseFailed{}

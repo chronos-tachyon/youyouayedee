@@ -11,7 +11,7 @@ func TestParse(t *testing.T) {
 		Input      string
 		ExpectOK   bool
 		ExpectUUID UUID
-		ExpectErr  ParseError
+		ExpectErr  ErrParseFailed
 	}
 
 	sillyValue := UUID{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}
@@ -61,7 +61,7 @@ func TestParse(t *testing.T) {
 		{
 			Input:    "x",
 			ExpectOK: false,
-			ExpectErr: ParseError{
+			ExpectErr: ErrParseFailed{
 				Input:   []byte("x"),
 				Problem: WrongLength,
 				Args:    mkargs(uint(1)),
@@ -70,7 +70,7 @@ func TestParse(t *testing.T) {
 		{
 			Input:    "0000000000001000800000000000000",
 			ExpectOK: false,
-			ExpectErr: ParseError{
+			ExpectErr: ErrParseFailed{
 				Input:   []byte("0000000000001000800000000000000"),
 				Problem: WrongLength,
 				Args:    mkargs(uint(31)),
@@ -79,7 +79,7 @@ func TestParse(t *testing.T) {
 		{
 			Input:    "000000000000100080000000000000000",
 			ExpectOK: false,
-			ExpectErr: ParseError{
+			ExpectErr: ErrParseFailed{
 				Input:   []byte("000000000000100080000000000000000"),
 				Problem: WrongLength,
 				Args:    mkargs(uint(33)),
@@ -88,7 +88,7 @@ func TestParse(t *testing.T) {
 		{
 			Input:    "0g000000000010008000000000000000",
 			ExpectOK: false,
-			ExpectErr: ParseError{
+			ExpectErr: ErrParseFailed{
 				Input:      []byte("0g000000000010008000000000000000"),
 				Problem:    UnexpectedCharacter,
 				Args:       mkargs(byte('g'), uint(1), "hex digit [0-9a-f]"),
@@ -99,7 +99,7 @@ func TestParse(t *testing.T) {
 		{
 			Input:    "00000000:0000:1000:8000:000000000000",
 			ExpectOK: false,
-			ExpectErr: ParseError{
+			ExpectErr: ErrParseFailed{
 				Input:      []byte("00000000:0000:1000:8000:000000000000"),
 				Problem:    UnexpectedCharacter,
 				Args:       mkargs(byte(':'), uint(8), "'-'"),
@@ -111,7 +111,7 @@ func TestParse(t *testing.T) {
 		{
 			Input:    "00000000-0000-1000-c000-000000000000",
 			ExpectOK: false,
-			ExpectErr: ParseError{
+			ExpectErr: ErrParseFailed{
 				Input:      []byte("00000000-0000-1000-c000-000000000000"),
 				Problem:    WrongVariant,
 				Args:       mkargs(byte(0xc0), byte(0x80)),
@@ -135,7 +135,7 @@ func TestParse(t *testing.T) {
 					t.Errorf("Parse succeeded, but with unexpected value\n\texpect: %v\n\tactual: %v", row.ExpectUUID, uuid)
 				}
 			} else {
-				xerr, ok := err.(ParseError)
+				xerr, ok := err.(ErrParseFailed)
 				if ok && reflect.DeepEqual(xerr, row.ExpectErr) {
 					return
 				}

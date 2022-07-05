@@ -22,15 +22,13 @@ type ClockStorage interface {
 	// Load retrieves the last known timestamp and the last known counter
 	// value for the given Node.
 	//
-	// If the implementation returns ClockStorageUnavailableError for any
-	// reason, the UUID generator is required to use the current time as
-	// the last known timestamp and to generate a new random counter value
-	// from scratch.
+	// If the implementation returns ErrClockNotFound for any reason, the
+	// UUID generator is required to use the current time as the last known
+	// timestamp and to generate a new random counter value from scratch.
 	//
 	// Implementations are not required to retain a (timestamp, counter)
 	// tuple for each node; if there is no tuple stored for the given Node,
-	// then ClockStorageUnavailableError is the best choice of return
-	// value.
+	// then ErrClockNotFound is the best choice of return value.
 	//
 	Load(Node) (time.Time, uint32, error)
 
@@ -48,23 +46,23 @@ type ClockStorage interface {
 	Store(Node, time.Time, uint32) error
 }
 
-// UnavailableClockStorage is a dummy implementation of ClockStorage that does
+// ClockStorageUnavailable is a dummy implementation of ClockStorage that does
 // not store anything.
-type UnavailableClockStorage struct{}
+type ClockStorageUnavailable struct{}
 
-func (UnavailableClockStorage) Load(Node) (time.Time, uint32, error) {
-	return time.Time{}, 0, ClockStorageUnavailableError{}
+func (ClockStorageUnavailable) Load(Node) (time.Time, uint32, error) {
+	return time.Time{}, 0, ErrClockNotFound{}
 }
 
-func (UnavailableClockStorage) Store(Node, time.Time, uint32) error {
+func (ClockStorageUnavailable) Store(Node, time.Time, uint32) error {
 	return nil
 }
 
-var _ ClockStorage = UnavailableClockStorage{}
+var _ ClockStorage = ClockStorageUnavailable{}
 
-// FileClockStorage is an implementation of ClockStorage that reads from and
+// ClockStorageFile is an implementation of ClockStorage that reads from and
 // writes to a file while holding a lock.
-type FileClockStorage struct {
+type ClockStorageFile struct {
 	mu     sync.Mutex
 	name   string
 	file   *os.File
@@ -77,8 +75,8 @@ type clockRow struct {
 	Counter uint32    `json:"counter"`
 }
 
-// OpenClockStorageFile constructs an instance of FileClockStorage.
-func OpenClockStorageFile(fileName string) (*FileClockStorage, error) {
+// OpenClockStorageFile constructs an instance of ClockStorageFile.
+func OpenClockStorageFile(fileName string) (*ClockStorageFile, error) {
 	if !lockFileSupported {
 		return nil, fmt.Errorf("clock sequence files must be locked for exclusive access, but package youyouayedee doesn't know how to lock files on your OS")
 	}
@@ -100,7 +98,7 @@ func OpenClockStorageFile(fileName string) (*FileClockStorage, error) {
 		return nil, fmt.Errorf("failed to acquire exclusive lock on clock sequence file: %q: %w", fileName, err)
 	}
 
-	cs := &FileClockStorage{
+	cs := &ClockStorageFile{
 		name: fileName,
 		file: f,
 	}
@@ -123,9 +121,9 @@ func OpenClockStorageFile(fileName string) (*FileClockStorage, error) {
 	return cs, nil
 }
 
-func (cs *FileClockStorage) Load(node Node) (time.Time, uint32, error) {
+func (cs *ClockStorageFile) Load(node Node) (time.Time, uint32, error) {
 	if cs == nil {
-		return time.Time{}, 0, ClockStorageUnavailableError{}
+		return time.Time{}, 0, ErrClockNotFound{}
 	}
 
 	cs.mu.Lock()
@@ -139,10 +137,10 @@ func (cs *FileClockStorage) Load(node Node) (time.Time, uint32, error) {
 	if row, found := cs.data[key]; found {
 		return row.Time, row.Counter, nil
 	}
-	return time.Time{}, 0, ClockStorageUnavailableError{}
+	return time.Time{}, 0, ErrClockNotFound{}
 }
 
-func (cs *FileClockStorage) Store(node Node, t time.Time, c uint32) error {
+func (cs *ClockStorageFile) Store(node Node, t time.Time, c uint32) error {
 	if cs == nil {
 		return nil
 	}
@@ -202,7 +200,7 @@ func (cs *FileClockStorage) Store(node Node, t time.Time, c uint32) error {
 	return nil
 }
 
-func (cs *FileClockStorage) Close() error {
+func (cs *ClockStorageFile) Close() error {
 	if cs == nil {
 		return nil
 	}
@@ -219,6 +217,6 @@ func (cs *FileClockStorage) Close() error {
 }
 
 var (
-	_ ClockStorage = (*FileClockStorage)(nil)
-	_ io.Closer    = (*FileClockStorage)(nil)
+	_ ClockStorage = (*ClockStorageFile)(nil)
+	_ io.Closer    = (*ClockStorageFile)(nil)
 )

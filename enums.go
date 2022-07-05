@@ -114,6 +114,8 @@ const (
 	ClockStorageLoadOp
 	ClockStorageStoreOp
 	InitializeBlakeHashOp
+	ReadRandomOp
+	NetInterfacesOp
 )
 
 var operationDataArray = [...]EnumData{
@@ -136,6 +138,14 @@ var operationDataArray = [...]EnumData{
 	{
 		GoName: "youyouayedee.InitializeBlakeHashOp",
 		Name:   "failed to initialize BLAKE2B hash algorithm",
+	},
+	{
+		GoName: "youyouayedee.ReadRandomOp",
+		Name:   "failed to read random data from entropy source",
+	},
+	{
+		GoName: "youyouayedee.NetInterfacesOp",
+		Name:   "failed to enumerate network interfaces using net.Interfaces()",
 	},
 }
 

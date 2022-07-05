@@ -7,23 +7,13 @@ import (
 	"sync/atomic"
 )
 
-type genHash struct {
-	BaseGenerator
-
-	ns     UUID
-	fn     func() hash.Hash
-	ver    Version
-	busy   uintptr
-	hasher hash.Hash
-}
-
 // NewHashGenerator initializes a new Generator that produces hash-based UUIDs.
 //
-// Versions 3, 5, and 8 are supported.  GeneratorOptions must specify a valid,
-// non-nil UUID in the Namespace field.  For version 8 only, GeneratorOptions
-// must also specify a valid, non-nil HashFactory callback.
+// Versions 3, 5, and 8 are supported.  Options must specify a valid, non-nil
+// UUID in the Namespace field.  For version 8 only, Options must also specify
+// a valid, non-nil HashFactory callback.
 //
-func NewHashGenerator(version Version, o GeneratorOptions) (Generator, error) {
+func NewHashGenerator(version Version, o Options) (Generator, error) {
 	var factory func() hash.Hash
 	switch version {
 	case 3:
@@ -35,20 +25,30 @@ func NewHashGenerator(version Version, o GeneratorOptions) (Generator, error) {
 	case 8:
 		factory = o.HashFactory
 		if factory == nil {
-			return nil, NilHashFactoryError{Version: version}
+			return nil, ErrHashFactoryIsNil{Version: version}
 		}
 
 	default:
-		return nil, MismatchedVersionError{Requested: version, Expected: []Version{3, 5, 8}}
+		return nil, ErrVersionMismatch{Requested: version, Expected: []Version{3, 5, 8}}
 	}
 
 	ns := o.Namespace
 	if !ns.IsValid() {
-		return nil, InvalidNamespaceError{Version: version, Namespace: ns}
+		return nil, ErrNamespaceNotValid{Version: version, Namespace: ns}
 	}
 
 	h := factory()
 	return &genHash{ns: ns, fn: factory, ver: version, busy: 0, hasher: h}, nil
+}
+
+type genHash struct {
+	GeneratorBase
+
+	ns     UUID
+	fn     func() hash.Hash
+	ver    Version
+	busy   uintptr
+	hasher hash.Hash
 }
 
 func (g *genHash) NewHashUUID(data []byte) (UUID, error) {

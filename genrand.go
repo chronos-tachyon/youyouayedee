@@ -4,19 +4,12 @@ import (
 	"io"
 )
 
-type genRandom struct {
-	BaseGenerator
-
-	rng io.Reader
-	ver Version
-}
-
 // NewRandomGenerator initializes a new Generator that produces new randomly
 // generated UUIDs.
 //
 // Versions 4 and 8 are supported.
 //
-func NewRandomGenerator(version Version, o GeneratorOptions) (Generator, error) {
+func NewRandomGenerator(version Version, o Options) (Generator, error) {
 	switch version {
 	case 4:
 		// pass
@@ -25,18 +18,25 @@ func NewRandomGenerator(version Version, o GeneratorOptions) (Generator, error) 
 		// pass
 
 	default:
-		return nil, MismatchedVersionError{Requested: version, Expected: []Version{4, 8}}
+		return nil, ErrVersionMismatch{Requested: version, Expected: []Version{4, 8}}
 	}
 
 	rng := o.RandomSource
 	return &genRandom{rng: rng, ver: version}, nil
 }
 
+type genRandom struct {
+	GeneratorBase
+
+	rng io.Reader
+	ver Version
+}
+
 func (g *genRandom) NewUUID() (UUID, error) {
 	var uuid UUID
 
 	if err := readRandom(g.rng, uuid[:]); err != nil {
-		return NilUUID, IOError{Err: err}
+		return NilUUID, err
 	}
 
 	uuid[6] = (uuid[6] & 0x0f) | byte(g.ver<<4)

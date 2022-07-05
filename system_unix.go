@@ -19,7 +19,7 @@ func lockFile(file *os.File) error {
 func listHardwareAddresses() ([]Node, error) {
 	list, err := net.Interfaces()
 	if err != nil {
-		return nil, err
+		return nil, ErrOperationFailed{Operation: NetInterfacesOp, Err: err}
 	}
 
 	candidates := make(hwaddrCandidates, 0, len(list))

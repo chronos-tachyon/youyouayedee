@@ -2,7 +2,7 @@ package youyouayedee
 
 // LeapSecondCalculator is an interface for calculating the number of leap
 // seconds by which Unix time differs from the number of SI seconds since
-// 1970-01-01T00:00:00Z.
+// 1970-01-01T00:00:00Z UTC.
 //
 // Leap seconds cannot be predicted sooner than about six months or so ahead of
 // time, so a proper implementation must source this data from the
@@ -16,19 +16,19 @@ type LeapSecondCalculator interface {
 	LeapSecondsSinceUnixEpoch(seconds int64, includesLeapSeconds bool) int
 }
 
-// DummyLeapSecondCalculator falsely claims that there has never been a leap
+// LeapSecondCalculatorDummy falsely claims that there has never been a leap
 // second.  Although this is not actually true, many existing Version 1 UUID
 // generators behave as though this is the case.
 //
-type DummyLeapSecondCalculator struct{}
+type LeapSecondCalculatorDummy struct{}
 
-func (DummyLeapSecondCalculator) LeapSecondsSinceUnixEpoch(seconds int64, includesLeapSeconds bool) int {
+func (LeapSecondCalculatorDummy) LeapSecondsSinceUnixEpoch(seconds int64, includesLeapSeconds bool) int {
 	return 0
 }
 
-var _ LeapSecondCalculator = DummyLeapSecondCalculator{}
+var _ LeapSecondCalculator = LeapSecondCalculatorDummy{}
 
-// FixedLeapSecondCalculator makes a best effort calculation of the number of
+// LeapSecondCalculatorFixed makes a best effort calculation of the number of
 // leap seconds that have elapsed before a given time.  The list of leap
 // seconds is statically compiled into the library and is subject to updates.
 //
@@ -36,9 +36,9 @@ var _ LeapSecondCalculator = DummyLeapSecondCalculator{}
 // differences may arise between past computations of a given recent date and
 // present computations if this library is updated between computations.
 //
-type FixedLeapSecondCalculator struct{}
+type LeapSecondCalculatorFixed struct{}
 
-func (FixedLeapSecondCalculator) LeapSecondsSinceUnixEpoch(seconds int64, includesLeapSeconds bool) int {
+func (LeapSecondCalculatorFixed) LeapSecondsSinceUnixEpoch(seconds int64, includesLeapSeconds bool) int {
 
 	// NB: there are corner cases at each leap second boundary.
 	//
@@ -84,7 +84,7 @@ func (FixedLeapSecondCalculator) LeapSecondsSinceUnixEpoch(seconds int64, includ
 	return total
 }
 
-var _ LeapSecondCalculator = FixedLeapSecondCalculator{}
+var _ LeapSecondCalculator = LeapSecondCalculatorFixed{}
 
 type leapSecond struct {
 	Time  int64

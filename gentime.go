@@ -10,26 +10,12 @@ import (
 	"golang.org/x/crypto/blake2b"
 )
 
-type genTime struct {
-	BaseGenerator
-
-	node  Node
-	now   func() time.Time
-	lsc   LeapSecondCalculator
-	cs    ClockStorage
-	ver   Version
-	mu    sync.Mutex
-	h     hash.Hash
-	last  time.Time
-	clock uint32
-}
-
 // NewTimeGenerator initializes a new Generator that produces time-based UUIDs
 // of the given version.
 //
 // Versions 1, 6, 7, and 8 are supported.
 //
-func NewTimeGenerator(version Version, o GeneratorOptions) (Generator, error) {
+func NewTimeGenerator(version Version, o Options) (Generator, error) {
 	var err error
 
 	var needHash bool
@@ -47,17 +33,14 @@ func NewTimeGenerator(version Version, o GeneratorOptions) (Generator, error) {
 		needHash = true
 
 	default:
-		return nil, MismatchedVersionError{Requested: version, Expected: []Version{1, 6, 7, 8}}
+		return nil, ErrVersionMismatch{Requested: version, Expected: []Version{1, 6, 7, 8}}
 	}
 
 	node := o.Node
 	if node.IsZero() {
-		node, err = GenerateNode(NodeOptions{
-			ForceRandomNode: o.ForceRandomNode,
-			RandomSource:    o.RandomSource,
-		})
+		node, err = GenerateNode(o)
 		if err != nil {
-			return nil, FailedOperationError{Operation: GenerateNodeOp, Err: err}
+			return nil, ErrOperationFailed{Operation: GenerateNodeOp, Err: err}
 		}
 	}
 
@@ -68,26 +51,26 @@ func NewTimeGenerator(version Version, o GeneratorOptions) (Generator, error) {
 
 	lsc := o.LeapSecondCalculator
 	if lsc == nil {
-		lsc = DummyLeapSecondCalculator{}
+		lsc = LeapSecondCalculatorDummy{}
 	}
 
 	cs := o.ClockStorage
 	if cs == nil {
-		cs = UnavailableClockStorage{}
+		cs = ClockStorageUnavailable{}
 	}
 
 	var h hash.Hash
 	if needHash {
 		h, err = blake2b.New256(node[:])
 		if err != nil {
-			return nil, FailedOperationError{Operation: InitializeBlakeHashOp, Err: err}
+			return nil, ErrOperationFailed{Operation: InitializeBlakeHashOp, Err: err}
 		}
 	}
 
 	last, clock, err := cs.Load(node)
 	if err != nil {
-		if !isClockStorageUnavailable(err) {
-			return nil, FailedOperationError{Operation: ClockStorageLoadOp, Err: err}
+		if !isErrClockNotFound(err) {
+			return nil, ErrOperationFailed{Operation: ClockStorageLoadOp, Err: err}
 		}
 
 		last = now()
@@ -106,6 +89,20 @@ func NewTimeGenerator(version Version, o GeneratorOptions) (Generator, error) {
 	}, nil
 }
 
+type genTime struct {
+	GeneratorBase
+
+	node  Node
+	now   func() time.Time
+	lsc   LeapSecondCalculator
+	cs    ClockStorage
+	ver   Version
+	mu    sync.Mutex
+	h     hash.Hash
+	last  time.Time
+	clock uint32
+}
+
 func (g *genTime) NewUUID() (UUID, error) {
 	g.mu.Lock()
 	defer g.mu.Unlock()
@@ -121,7 +118,7 @@ func (g *genTime) NewUUID() (UUID, error) {
 
 	err := g.cs.Store(g.node, g.last, g.clock)
 	if err != nil {
-		return NilUUID, FailedOperationError{Operation: ClockStorageStoreOp, Err: err}
+		return NilUUID, ErrOperationFailed{Operation: ClockStorageStoreOp, Err: err}
 	}
 
 	var uuid UUID

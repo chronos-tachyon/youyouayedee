@@ -2,7 +2,6 @@ package youyouayedee
 
 import (
 	"fmt"
-	"io"
 	"sort"
 )
 
@@ -91,38 +90,15 @@ func (node Node) AppendTo(out []byte) []byte {
 	return out
 }
 
-// NodeOptions supplies options for obtaining a reasonably unique node
-// identifier.
-type NodeOptions struct {
-	// ForceRandomNode specifies whether or not to force the use of a
-	// randomly chosen node identifier.
-	//
-	// If true, the host's hardware addresses are ignored completely and a
-	// random node identifier is always chosen.
-	//
-	// If false, a random node identifier is only used if no appropriate
-	// hardware address (EUI-48, or EUI-64 that's backward compatible with
-	// EUI-48) can be found.
-	//
-	ForceRandomNode bool
-
-	// RandomSource specifies a source of random bytes.
-	//
-	// If this field is nil but a source of random bytes is required, then
-	// "crypto/rand".Reader will be used instead.
-	//
-	RandomSource io.Reader
-}
-
 // GenerateNode returns the best available node identifier given the current
 // host's EUI-48 and EUI-64 network addresses, or else it generates one at
 // random as a fallback.
-func GenerateNode(o NodeOptions) (Node, error) {
+func GenerateNode(o Options) (Node, error) {
 	var node Node
 	if !o.ForceRandomNode {
 		nodes, err := listHardwareAddresses()
 		if err != nil {
-			return NilNode, IOError{Err: err}
+			return NilNode, err
 		}
 		if len(nodes) > 0 {
 			return nodes[0], nil
@@ -130,7 +106,7 @@ func GenerateNode(o NodeOptions) (Node, error) {
 	}
 
 	if err := readRandom(o.RandomSource, node[:]); err != nil {
-		return NilNode, IOError{Err: err}
+		return NilNode, err
 	}
 
 	// Set the G/L bit to L and the U/M bit to M.
