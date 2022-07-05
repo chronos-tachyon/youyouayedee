@@ -94,6 +94,17 @@ func (err ErrNamespaceNotValid) Error() string {
 
 var _ error = ErrNamespaceNotValid{}
 
+// ErrInputNotValid indicates that the input UUID is not a valid UUID.
+type ErrInputNotValid struct {
+	Input UUID
+}
+
+func (err ErrInputNotValid) Error() string {
+	return fmt.Sprintf("input UUID %v is not valid", err.Input)
+}
+
+var _ error = ErrInputNotValid{}
+
 // ErrMethodNotSupported indicates that the called Generator method is not
 // supported by the implementation.
 type ErrMethodNotSupported struct {

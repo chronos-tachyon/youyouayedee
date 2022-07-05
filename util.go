@@ -3,6 +3,7 @@ package youyouayedee
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/binary"
 	"errors"
 	"io"
 	"strconv"
@@ -236,4 +237,77 @@ func parse(input []byte, isBytes bool) (UUID, error) {
 
 func mkargs(args ...interface{}) []interface{} {
 	return args
+}
+
+func getUint48(in []byte) uint64 {
+	var tmp [8]byte
+	copy(tmp[2:8], in[0:6])
+	return binary.BigEndian.Uint64(tmp[:])
+}
+
+func getV1Ticks(in []byte) uint64 {
+	lo := binary.BigEndian.Uint32(in[0:4])
+	mid := binary.BigEndian.Uint16(in[4:6])
+	hi := binary.BigEndian.Uint16(in[6:8]) & 0x0fff
+	return (uint64(hi) << 48) | (uint64(mid) << 32) | uint64(lo)
+}
+
+func getV6Ticks(in []byte) uint64 {
+	hi := binary.BigEndian.Uint32(in[0:4])
+	mid := binary.BigEndian.Uint16(in[4:6])
+	lo := binary.BigEndian.Uint16(in[6:8]) & 0x0fff
+	return (uint64(hi) << 28) | (uint64(mid) << 12) | uint64(lo)
+}
+
+func getClock14(in []byte) uint32 {
+	return uint32(binary.BigEndian.Uint16(in[0:2]) & 0x3fff)
+}
+
+func getClock32(in []byte) (uint32, bool) {
+	hi := binary.BigEndian.Uint16(in[0:2])
+	mid := binary.BigEndian.Uint16(in[2:4])
+	lo := in[4]
+	ok := (mid & 0x3000) == 0x0000
+	return (uint32(hi) << 20) | (uint32(mid) << 8) | uint32(lo), ok
+}
+
+func putUint48(out []byte, value uint64) {
+	var tmp [8]byte
+	binary.BigEndian.PutUint64(tmp[:], value)
+	copy(out[0:6], tmp[2:8])
+}
+
+func putV1Ticks(out []byte, value uint64) {
+	hi := uint16(value>>48) & 0x0fff
+	mid := uint16(value >> 32)
+	lo := uint32(value)
+
+	binary.BigEndian.PutUint32(out[0:4], lo)
+	binary.BigEndian.PutUint16(out[4:6], mid)
+	binary.BigEndian.PutUint16(out[6:8], hi)
+}
+
+func putV6Ticks(out []byte, value uint64) {
+	hi := uint32(value >> 28)
+	mid := uint16(value >> 12)
+	lo := uint16(value) & 0x0fff
+
+	binary.BigEndian.PutUint32(out[0:4], hi)
+	binary.BigEndian.PutUint16(out[4:6], mid)
+	binary.BigEndian.PutUint16(out[6:8], lo)
+}
+
+func putClock14(out []byte, value uint32) {
+	u16 := uint16(value & 0x3fff)
+	binary.BigEndian.PutUint16(out[0:2], u16)
+}
+
+func putClock32(out []byte, value uint32) {
+	hi := uint16(value>>20) & 0x0fff
+	mid := uint16(value>>8) & 0x0fff
+	lo := uint8(value)
+
+	binary.BigEndian.PutUint16(out[0:2], hi)
+	binary.BigEndian.PutUint16(out[2:4], mid)
+	out[4] = lo
 }

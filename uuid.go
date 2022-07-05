@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"time"
+
+	"golang.org/x/crypto/blake2b"
 )
 
 // Size is the size of a UUID in bytes.
@@ -134,12 +136,12 @@ var (
 	_ fmt.Stringer   = UUID{}
 )
 
-// Decode breaks down a UUID into its component fields.
+// Decode breaks down this UUID into its component fields.
 //
 // Only V1 and V6 UUIDs make use of the LeapSecondCalculator argument.  If it
 // is required but nil, then a LeapSecondCalculatorDummy will be used instead.
 //
-func Decode(uuid UUID, lsc LeapSecondCalculator) Breakdown {
+func (uuid UUID) Decode(lsc LeapSecondCalculator) Breakdown {
 	var breakdown Breakdown
 	var ticks uint64
 
@@ -147,68 +149,68 @@ func Decode(uuid UUID, lsc LeapSecondCalculator) Breakdown {
 		return breakdown
 	}
 
-	raw := [Size]byte(uuid)
-	raw[6] = (raw[6] & 0x0f)
-	raw[8] = (raw[8] & 0x3f)
-
-	var scratch [8]byte
+	version := uuid.Version()
+	uuid[6] = (uuid[6] & 0x0f)
+	uuid[8] = (uuid[8] & 0x3f)
 
 	if lsc == nil {
 		lsc = LeapSecondCalculatorDummy{}
 	}
 
 	breakdown.Valid = true
-	breakdown.Version = uuid.Version()
+	breakdown.Version = version
 
 	switch breakdown.Version {
 	case 1:
-		ticks = uint64(binary.BigEndian.Uint32(raw[0:4]))
-		ticks |= uint64(binary.BigEndian.Uint16(raw[4:6])) << 32
-		ticks |= uint64(binary.BigEndian.Uint16(raw[6:8])) << 48
+		ticks = getV1Ticks(uuid[0:8])
 		breakdown.HasTicks = true
 		breakdown.HasCounter = true
 		breakdown.HasNode = true
 		breakdown.Time = gregorianTicksToGoTime(lsc, ticks)
 		breakdown.Ticks = int64(ticks)
-		breakdown.Counter = int(binary.BigEndian.Uint16(raw[8:10]))
-		copy(breakdown.Node[:], raw[10:16])
+		breakdown.Counter = int(getClock14(uuid[8:10]))
+		copy(breakdown.Node[:], uuid[10:16])
+
+	case 2:
+		breakdown.HasDomainAndID = true
+		breakdown.HasData = true
+		breakdown.Domain = DCEDomain(uuid[9])
+		breakdown.ID = binary.BigEndian.Uint32(uuid[0:4])
+		breakdown.Data = make([]byte, 11)
+		copy(breakdown.Data[0:5], uuid[4:9])
+		copy(breakdown.Data[5:11], uuid[10:16])
 
 	case 6:
-		ticks = uint64(binary.BigEndian.Uint32(raw[0:4])) << (32 - 4)
-		ticks |= uint64(binary.BigEndian.Uint16(raw[4:6])) << (16 - 4)
-		ticks |= uint64(binary.BigEndian.Uint16(raw[6:8]))
+		ticks = getV6Ticks(uuid[0:8])
 		breakdown.HasTicks = true
 		breakdown.HasCounter = true
 		breakdown.HasNode = true
 		breakdown.Time = gregorianTicksToGoTime(lsc, ticks)
 		breakdown.Ticks = int64(ticks)
-		breakdown.Counter = int(binary.BigEndian.Uint16(raw[8:10]))
-		copy(breakdown.Node[:], raw[10:16])
+		breakdown.Counter = int(getClock14(uuid[8:10]))
+		copy(breakdown.Node[:], uuid[10:16])
 
 	case 7:
-		copy(scratch[2:8], raw[0:6])
-		ticks = binary.BigEndian.Uint64(scratch[0:8])
+		ticks = getUint48(uuid[0:6])
 		ticks = uint64(signExtendUnixTicks(ticks))
 		breakdown.HasTicks = true
 		breakdown.HasData = true
 		breakdown.Time = unixTicksToGoTime(int64(ticks))
 		breakdown.Ticks = int64(ticks)
-		breakdown.Data = make([]byte, 10)
-		copy(breakdown.Data[0:10], raw[6:16])
-
-	case 2:
-		breakdown.HasDomainAndID = true
-		breakdown.HasData = true
-		breakdown.Domain = DCEDomain(raw[9])
-		breakdown.ID = binary.BigEndian.Uint32(raw[0:4])
-		breakdown.Data = make([]byte, 11)
-		copy(breakdown.Data[0:5], raw[4:9])
-		copy(breakdown.Data[5:11], raw[10:16])
+		if clock, ok := getClock32(uuid[6:11]); ok {
+			breakdown.HasCounter = true
+			breakdown.Counter = int(clock)
+			breakdown.Data = make([]byte, 5)
+			copy(breakdown.Data[0:5], uuid[11:16])
+		} else {
+			breakdown.Data = make([]byte, 10)
+			copy(breakdown.Data[0:10], uuid[6:16])
+		}
 
 	default:
 		breakdown.HasData = true
 		breakdown.Data = make([]byte, Size)
-		copy(breakdown.Data, raw[:])
+		copy(breakdown.Data, uuid[:])
 	}
 	return breakdown
 }
@@ -285,4 +287,90 @@ type Breakdown struct {
 	// from the UUID.
 	//
 	Data []byte
+}
+
+// Convert returns a copy of this UUID which has been converted from its
+// current UUID version to the given UUID version.  Most version combinations
+// are not possible.  This method will return ErrVersionMismatch for such
+// combinations.  The primary use for this method is to convert V1 UUIDs into
+// V6 UUIDs and back, as this is the only pair for which bidirectional
+// conversions exist.
+//
+// Only V1 and V6 UUIDs make use of the LeapSecondCalculator argument, and only
+// when converting to V7 UUIDs.  If it is required but nil, then a
+// LeapSecondCalculatorDummy will be used instead.
+//
+func (uuid UUID) Convert(version Version, lsc LeapSecondCalculator) (UUID, error) {
+	if uuid.IsZero() || uuid.IsMax() {
+		return uuid, nil
+	}
+
+	if !uuid.IsValid() {
+		return uuid, ErrInputNotValid{Input: uuid}
+	}
+
+	current := uuid.Version()
+	if version == current {
+		return uuid, nil
+	}
+	if version == 8 {
+		uuid[6] = (uuid[6] & 0x0f) | 0x80
+		return uuid, nil
+	}
+
+	if lsc == nil {
+		lsc = LeapSecondCalculatorDummy{}
+	}
+
+	var ok bool
+	if current == 1 && version == 6 {
+		ticks := getV1Ticks(uuid[0:8])
+		putV6Ticks(uuid[0:8], ticks)
+		ok = true
+	}
+	if current == 6 && version == 1 {
+		ticks := getV6Ticks(uuid[0:8])
+		putV1Ticks(uuid[0:8], ticks)
+		ok = true
+	}
+	if current == 1 && version == 7 {
+		ticks := getV1Ticks(uuid[0:8])
+		clock := uint32(getClock14(uuid[8:10]))
+		sum := blake2b.Sum256(uuid[:])
+
+		putUint48(uuid[0:6], goTimeToUnixTicks(gregorianTicksToGoTime(lsc, ticks)))
+		putClock32(uuid[6:11], clock)
+		copy(uuid[11:16], sum[0:5])
+		ok = true
+	}
+	if current == 6 && version == 7 {
+		ticks := getV6Ticks(uuid[0:8])
+		clock := uint32(getClock14(uuid[8:10]))
+		sum := blake2b.Sum256(uuid[:])
+
+		putUint48(uuid[0:6], goTimeToUnixTicks(gregorianTicksToGoTime(lsc, ticks)))
+		putClock32(uuid[6:11], clock)
+		copy(uuid[11:16], sum[0:5])
+		ok = true
+	}
+	if ok {
+		uuid[6] = (uuid[6] & 0x0f) | byte(version<<4)
+		uuid[8] = (uuid[8] & 0x3f) | 0x80
+		return uuid, nil
+	}
+
+	var expected []Version
+	switch current {
+	case 1:
+		fallthrough
+	case 6:
+		expected = []Version{1, 6, 7, 8}
+	default:
+		expected = []Version{current, 8}
+	}
+
+	return uuid, ErrVersionMismatch{
+		Requested: version,
+		Expected:  expected,
+	}
 }

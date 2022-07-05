@@ -2,7 +2,6 @@ package youyouayedee
 
 import (
 	"encoding/binary"
-	"hash"
 	"math/rand"
 	"sync"
 	"time"
@@ -18,21 +17,7 @@ import (
 func NewTimeGenerator(version Version, o Options) (Generator, error) {
 	var err error
 
-	var needHash bool
-	switch version {
-	case 1:
-		needHash = false
-
-	case 6:
-		needHash = false
-
-	case 7:
-		needHash = true
-
-	case 8:
-		needHash = true
-
-	default:
+	if version != 1 && version != 6 && version != 7 && version != 8 {
 		return nil, ErrVersionMismatch{Requested: version, Expected: []Version{1, 6, 7, 8}}
 	}
 
@@ -59,14 +44,6 @@ func NewTimeGenerator(version Version, o Options) (Generator, error) {
 		cs = ClockStorageUnavailable{}
 	}
 
-	var h hash.Hash
-	if needHash {
-		h, err = blake2b.New256(node[:])
-		if err != nil {
-			return nil, ErrOperationFailed{Operation: InitializeBlakeHashOp, Err: err}
-		}
-	}
-
 	last, clock, err := cs.Load(node)
 	if err != nil {
 		if !isErrClockNotFound(err) {
@@ -83,7 +60,6 @@ func NewTimeGenerator(version Version, o Options) (Generator, error) {
 		lsc:   lsc,
 		cs:    cs,
 		ver:   version,
-		h:     h,
 		last:  last,
 		clock: clock,
 	}, nil
@@ -98,7 +74,6 @@ type genTime struct {
 	cs    ClockStorage
 	ver   Version
 	mu    sync.Mutex
-	h     hash.Hash
 	last  time.Time
 	clock uint32
 }
@@ -122,44 +97,30 @@ func (g *genTime) NewUUID() (UUID, error) {
 	}
 
 	var uuid UUID
-	var hashInput [12]byte
-	var hashOutput [blake2b.Size256]byte
-	var sum []byte
 	var ticks uint64
 
-	switch g.ver {
-	case 1:
+	if g.ver == 1 {
 		ticks = goTimeToGregorianTicks(g.lsc, now)
-		binary.BigEndian.PutUint32(uuid[0:4], uint32(ticks))
-		binary.BigEndian.PutUint16(uuid[4:6], uint16(ticks>>32))
-		binary.BigEndian.PutUint16(uuid[6:8], uint16(ticks>>48))
-		binary.BigEndian.PutUint16(uuid[8:10], uint16(g.clock))
+		putV1Ticks(uuid[0:8], ticks)
+		putClock14(uuid[8:10], g.clock)
 		copy(uuid[10:16], g.node[0:6])
-
-	case 6:
+	} else if g.ver == 6 {
 		ticks = goTimeToGregorianTicks(g.lsc, now)
-		binary.BigEndian.PutUint32(uuid[0:4], uint32(ticks>>(32-4)))
-		binary.BigEndian.PutUint16(uuid[4:6], uint16(ticks>>(16-4)))
-		binary.BigEndian.PutUint16(uuid[6:8], uint16(ticks))
-		binary.BigEndian.PutUint16(uuid[8:10], uint16(g.clock))
+		putV6Ticks(uuid[0:8], ticks)
+		putClock14(uuid[8:10], g.clock)
 		copy(uuid[10:16], g.node[0:6])
-
-	case 7:
-		fallthrough
-	case 8:
+	} else {
 		ticks = goTimeToUnixTicks(now)
+
+		var hashInput [18]byte
 		binary.BigEndian.PutUint64(hashInput[0:8], ticks)
 		binary.BigEndian.PutUint32(hashInput[8:12], g.clock)
+		copy(hashInput[12:18], g.node[0:6])
+		sum := blake2b.Sum256(hashInput[:])
 
-		g.h.Reset()
-		_, _ = g.h.Write(hashInput[:])
-		sum = g.h.Sum(hashOutput[:])
-
-		copy(uuid[0:6], hashInput[2:8])
-		copy(uuid[6:16], sum[0:10])
-
-	default:
-		panic("bad version")
+		putUint48(uuid[0:6], ticks)
+		putClock32(uuid[6:11], g.clock)
+		copy(uuid[11:16], sum[0:5])
 	}
 
 	uuid[6] = (uuid[6] & 0x0f) | byte(g.ver<<4)
