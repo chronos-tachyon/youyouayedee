@@ -4,7 +4,7 @@ import (
 	"io"
 )
 
-// NewRandomGenerator initializes a new Generator that produces new randomly
+// NewRandomGenerator constructs a new Generator that produces new randomly
 // generated UUIDs.
 //
 // Versions 4 and 8 are supported.

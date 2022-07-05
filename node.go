@@ -9,7 +9,7 @@ import (
 // has been formatted to look like one.
 type Node [6]byte
 
-// NilNode represents the invalid nil node identifier.
+// NilNode represents the invalid nil node identifier, "00:00:00:00:00:00".
 var NilNode = Node{}
 
 // IsZero returns true iff this Node is the nil node identifier.

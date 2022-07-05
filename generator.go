@@ -5,7 +5,7 @@ type Generator interface {
 	// NewUUID generates a new unpredictable UUID.
 	//
 	// Generators are not required to support this operation, and should
-	// return MustHashError if only NewHashUUID is implemented.
+	// return ErrMethodNotSupported{MethodNewUUID} if it is not.
 	//
 	NewUUID() (UUID, error)
 
@@ -13,7 +13,7 @@ type Generator interface {
 	// input data.
 	//
 	// Generators are not required to support this operation, and should
-	// return MustNotHashError if only NewUUID is implemented.
+	// return ErrMethodNotSupported{MethodNewHashUUID} if it is not.
 	//
 	NewHashUUID(data []byte) (UUID, error)
 }
@@ -47,9 +47,9 @@ func NewGenerator(version Version, o Options) (Generator, error) {
 	return nil, ErrVersionNotSupported{Version: version}
 }
 
-// GeneratorBase is a dummy Generator implementation that you can embed into
-// your Generator implementation.  All Generator methods will then have default
-// implementations that simply return ErrMethodNotSupported.
+// GeneratorBase is a base Generator implementation that you can embed into the
+// struct of your custom Generator implementation.  All Generator methods will
+// then have default implementations that simply return ErrMethodNotSupported.
 //
 // This is a very easy way to future-proof your code for resiliency during
 // future major version updates affecting the Generator interface.

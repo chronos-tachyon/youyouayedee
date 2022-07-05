@@ -3,14 +3,14 @@ package youyouayedee
 import (
 	"encoding/binary"
 	"hash"
-	mathrand "math/rand"
+	"math/rand"
 	"sync"
 	"time"
 
 	"golang.org/x/crypto/blake2b"
 )
 
-// NewTimeGenerator initializes a new Generator that produces time-based UUIDs
+// NewTimeGenerator constructs a new Generator that produces time-based UUIDs
 // of the given version.
 //
 // Versions 1, 6, 7, and 8 are supported.
@@ -74,7 +74,7 @@ func NewTimeGenerator(version Version, o Options) (Generator, error) {
 		}
 
 		last = now()
-		clock = mathrand.Uint32()
+		clock = rand.Uint32()
 	}
 
 	return &genTime{

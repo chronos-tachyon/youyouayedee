@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 )
 
-// NewHashGenerator initializes a new Generator that produces hash-based UUIDs.
+// NewHashGenerator constructs a new Generator that produces hash-based UUIDs.
 //
 // Versions 3, 5, and 8 are supported.  Options must specify a valid, non-nil
 // UUID in the Namespace field.  For version 8 only, Options must also specify
