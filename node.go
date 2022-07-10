@@ -58,6 +58,10 @@ func (node Node) IsMulticast() bool {
 
 // GoString formats the Node as a developer-friendly string.
 func (node Node) GoString() string {
+	if node.IsZero() {
+		return "youyouayedee.NilNode"
+	}
+
 	var tmp [64]byte
 	buf := tmp[:0]
 	buf = append(buf, "youyouayedee.Node{"...)

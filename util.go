@@ -92,7 +92,7 @@ func parse(input []byte, isBytes bool) (UUID, error) {
 	var requiredByteValues []byte
 	var requiredByteCount uint
 	var a, b, c, d, e uint
-	var okToParse, checkParse, allZeroes, allOnes bool
+	var okToParse, allZeroes, allOnes bool
 
 	inputLen := uint(len(input))
 
@@ -104,19 +104,19 @@ func parse(input []byte, isBytes bool) (UUID, error) {
 
 	switch inputLen {
 	case 0:
-		return NilUUID, nil
+		return Nil, nil
 
 	case 3:
 		if string(input) == "nil" {
-			return NilUUID, nil
+			return Nil, nil
 		}
 		if string(input) == "max" {
-			return MaxUUID, nil
+			return Max, nil
 		}
 
 	case 4:
 		if string(input) == "null" {
-			return NilUUID, nil
+			return Nil, nil
 		}
 
 	case 16:
@@ -128,7 +128,7 @@ func parse(input []byte, isBytes bool) (UUID, error) {
 				allZeroes = allZeroes && (output[oi] == 0x00)
 				allOnes = allOnes && (output[oi] == 0xff)
 			}
-			checkParse = true
+			return checkParse(input, output, allZeroes, allOnes)
 		}
 
 	case 32:
@@ -157,81 +157,81 @@ func parse(input []byte, isBytes bool) (UUID, error) {
 		okToParse = true
 	}
 
-	if okToParse {
-		for xi := uint(0); xi < requiredByteCount; xi++ {
-			ii := requiredByteIndices[xi]
-			ch := requiredByteValues[xi]
-			if input[ii] != ch {
-				return NilUUID, ErrParseFailed{
-					Input:      input,
-					Problem:    UnexpectedCharacter,
-					Args:       mkargs(input[ii], ii, strconv.QuoteRune(rune(ch))),
-					Index:      ii,
-					ExpectByte: ch,
-					ActualByte: input[ii],
-				}
+	if !okToParse {
+		problem := WrongTextLength
+		if isBytes {
+			problem = WrongBinaryLength
+		}
+		return Nil, ErrParseFailed{
+			Input:   input,
+			Problem: problem,
+			Args:    mkargs(inputLen),
+		}
+	}
+
+	for xi := uint(0); xi < requiredByteCount; xi++ {
+		ii := requiredByteIndices[xi]
+		ch := requiredByteValues[xi]
+		if input[ii] != ch {
+			return Nil, ErrParseFailed{
+				Input:      input,
+				Problem:    UnexpectedCharacter,
+				Args:       mkargs(input[ii], ii, strconv.QuoteRune(rune(ch))),
+				Index:      ii,
+				ExpectByte: ch,
+				ActualByte: input[ii],
 			}
 		}
+	}
 
-		inputIndex := [Size]uint{
-			a + 0x0, a + 0x2, a + 0x4, a + 0x6,
-			b + 0x0, b + 0x2, c + 0x0, c + 0x2,
-			d + 0x0, d + 0x2, e + 0x0, e + 0x2,
-			e + 0x4, e + 0x6, e + 0x8, e + 0xa,
-		}
+	inputIndex := [Size]uint{
+		a + 0x0, a + 0x2, a + 0x4, a + 0x6,
+		b + 0x0, b + 0x2, c + 0x0, c + 0x2,
+		d + 0x0, d + 0x2, e + 0x0, e + 0x2,
+		e + 0x4, e + 0x6, e + 0x8, e + 0xa,
+	}
 
-		var ok [Size]bool
-		for oi := uint(0); oi < Size; oi++ {
-			ok[oi], output[oi] = decodeHexByte(input, inputIndex[oi])
-		}
+	var ok [Size]bool
+	for oi := uint(0); oi < Size; oi++ {
+		ok[oi], output[oi] = decodeHexByte(input, inputIndex[oi])
+	}
 
-		allZeroes = true
-		allOnes = true
-		for oi := uint(0); oi < Size; oi++ {
-			if !ok[oi] {
-				ii := inputIndex[oi]
-				if isHex(input, ii) {
-					ii++
-				}
-				return NilUUID, ErrParseFailed{
-					Input:      input,
-					Problem:    UnexpectedCharacter,
-					Args:       mkargs(input[ii], ii, "hex digit [0-9a-f]"),
-					Index:      ii,
-					ActualByte: input[ii],
-				}
+	allZeroes = true
+	allOnes = true
+	for oi := uint(0); oi < Size; oi++ {
+		if !ok[oi] {
+			ii := inputIndex[oi]
+			if isHex(input, ii) {
+				ii++
 			}
-			allZeroes = allZeroes && (output[oi] == 0x00)
-			allOnes = allOnes && (output[oi] == 0xff)
+			return Nil, ErrParseFailed{
+				Input:      input,
+				Problem:    UnexpectedCharacter,
+				Args:       mkargs(input[ii], ii, "hex digit [0-9a-f]"),
+				Index:      ii,
+				ActualByte: input[ii],
+			}
 		}
-
-		checkParse = true
+		allZeroes = allZeroes && (output[oi] == 0x00)
+		allOnes = allOnes && (output[oi] == 0xff)
 	}
 
-	if checkParse {
-		actualVB := output[8]
-		expectVB := (actualVB & 0x3f) | 0x80
-		if actualVB == expectVB || allZeroes || allOnes {
-			return output, nil
-		}
+	return checkParse(input, output, allZeroes, allOnes)
+}
 
-		return NilUUID, ErrParseFailed{
-			Input:      input,
-			Problem:    WrongVariant,
-			Args:       mkargs(actualVB, expectVB),
-			ExpectByte: expectVB,
-			ActualByte: actualVB,
-		}
+func checkParse(input []byte, output UUID, allZeroes bool, allOnes bool) (UUID, error) {
+	actualVB := output[8]
+	expectVB := (actualVB & 0x3f) | 0x80
+	if actualVB == expectVB || allZeroes || allOnes {
+		return output, nil
 	}
 
-	problem := WrongLength
-	if isBytes {
-		problem = WrongBinaryLength
-	}
-	return NilUUID, ErrParseFailed{
-		Input:   input,
-		Problem: problem,
-		Args:    mkargs(inputLen),
+	return Nil, ErrParseFailed{
+		Input:      input,
+		Problem:    WrongVariant,
+		Args:       mkargs(actualVB, expectVB),
+		ExpectByte: expectVB,
+		ActualByte: actualVB,
 	}
 }
 

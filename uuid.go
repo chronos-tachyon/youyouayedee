@@ -11,20 +11,20 @@ const Size = 16
 // UUID represents a UUID.  Only the RFC 4122 variant is supported.
 type UUID [Size]byte
 
-// NilUUID is the nil UUID, "00000000-0000-0000-0000-000000000000".
-var NilUUID = UUID{}
+// Nil is the nil UUID, "00000000-0000-0000-0000-000000000000".
+var Nil = UUID{}
 
-// MaxUUID is the maximum UUID, "ffffffff-ffff-ffff-ffff-ffffffffffff".
-var MaxUUID = UUID{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
+// Max is the maximum UUID, "ffffffff-ffff-ffff-ffff-ffffffffffff".
+var Max = UUID{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}
 
 // IsZero returns true iff this UUID is the nil UUID.
 func (uuid UUID) IsZero() bool {
-	return uuid == NilUUID
+	return uuid == Nil
 }
 
 // IsMax returns true iff this UUID is the maximum UUID.
 func (uuid UUID) IsMax() bool {
-	return uuid == MaxUUID
+	return uuid == Max
 }
 
 // IsValid returns true iff this UUID is a valid UUID according to the rules
@@ -62,6 +62,14 @@ func (uuid UUID) ID() uint32 {
 
 // GoString formats the UUID as a developer-friendly string.
 func (uuid UUID) GoString() string {
+	if uuid.IsZero() {
+		return "youyouayedee.Nil"
+	}
+
+	if uuid.IsMax() {
+		return "youyouayedee.Max"
+	}
+
 	//  1 * "youyouayedee.UUID{}" = 19 bytes
 	//  1 * "0x??"                =  4 bytes
 	// 15 * ", 0x??"              = 90 bytes (15 * 6)

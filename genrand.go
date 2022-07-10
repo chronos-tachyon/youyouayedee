@@ -36,7 +36,7 @@ func (g *genRandom) NewUUID() (UUID, error) {
 	var uuid UUID
 
 	if err := readRandom(g.rng, uuid[:]); err != nil {
-		return NilUUID, err
+		return Nil, err
 	}
 
 	uuid[6] = (uuid[6] & 0x0f) | byte(g.ver<<4)

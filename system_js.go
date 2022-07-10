@@ -4,7 +4,6 @@
 package youyouayedee
 
 import (
-	"fmt"
 	"os"
 )
 

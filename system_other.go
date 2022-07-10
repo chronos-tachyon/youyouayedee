@@ -4,7 +4,6 @@
 package youyouayedee
 
 import (
-	"fmt"
 	"net"
 	"os"
 )

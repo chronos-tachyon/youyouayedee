@@ -93,7 +93,7 @@ func (g *genTime) NewUUID() (UUID, error) {
 
 	err := g.cs.Store(g.node, g.last, g.clock)
 	if err != nil {
-		return NilUUID, ErrOperationFailed{Operation: ClockStorageStoreOp, Err: err}
+		return Nil, ErrOperationFailed{Operation: ClockStorageStoreOp, Err: err}
 	}
 
 	var uuid UUID

@@ -14,7 +14,7 @@ import (
 // You can also convert V1/V6 into V7 unidirectionally, and you can convert
 // absolutely any valid UUID into V8 unidirectionally.
 //
-// NilUUID and MaxUUID are always returned unmodified.
+// Nil and Max are always returned unmodified.
 //
 // Only V1 and V6 UUIDs make use of the LeapSecondCalculator argument, and only
 // when converting to V7 UUIDs.  If it is required but nil, then a
@@ -26,7 +26,7 @@ func (uuid UUID) Convert(version Version, lsc LeapSecondCalculator) (UUID, error
 	}
 
 	if !uuid.IsValid() {
-		return uuid, ErrInputNotValid{Input: uuid}
+		return Nil, ErrInputNotValid{Input: uuid}
 	}
 
 	current := uuid.Version()
@@ -85,7 +85,7 @@ func (uuid UUID) Convert(version Version, lsc LeapSecondCalculator) (UUID, error
 	} else {
 		expected = append(expected, current, 8)
 	}
-	return uuid, ErrVersionMismatch{
+	return Nil, ErrVersionMismatch{
 		Requested: version,
 		Expected:  expected,
 	}

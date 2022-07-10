@@ -39,7 +39,7 @@ func (uuid *UUID) UnmarshalBinary(data []byte) error {
 
 // UnmarshalJSON fulfills the "encoding/json".Unmarshaler interface.
 func (uuid *UUID) UnmarshalJSON(data []byte) error {
-	*uuid = NilUUID
+	*uuid = Nil
 
 	if len(data) == 4 && string(data) == "null" {
 		return nil
@@ -58,7 +58,7 @@ func (uuid *UUID) UnmarshalJSON(data []byte) error {
 // Scan fulfills the "database/sql".Scanner interface.
 func (uuid *UUID) Scan(value interface{}) error {
 	var err error
-	*uuid = NilUUID
+	*uuid = Nil
 	switch x := value.(type) {
 	case nil:
 		err = nil

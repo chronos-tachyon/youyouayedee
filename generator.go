@@ -57,11 +57,11 @@ func NewGenerator(version Version, o Options) (Generator, error) {
 type GeneratorBase struct{}
 
 func (GeneratorBase) NewUUID() (UUID, error) {
-	return NilUUID, ErrMethodNotSupported{Method: MethodNewUUID}
+	return Nil, ErrMethodNotSupported{Method: MethodNewUUID}
 }
 
 func (GeneratorBase) NewHashUUID(data []byte) (UUID, error) {
-	return NilUUID, ErrMethodNotSupported{Method: MethodNewHashUUID}
+	return Nil, ErrMethodNotSupported{Method: MethodNewHashUUID}
 }
 
 var _ Generator = GeneratorBase{}

@@ -181,7 +181,7 @@ const (
 	_ ParseProblem = iota
 	UnexpectedCharacter
 	WrongVariant
-	WrongLength
+	WrongTextLength
 	WrongBinaryLength
 )
 
@@ -201,9 +201,9 @@ var parseProblemDataArray = [...]EnumData{
 		Format: "unexpected value %02x for UUID variant byte; should be %02x",
 	},
 	{
-		GoName: "youyouayedee.WrongLength",
-		Name:   "wrong input length",
-		Format: "unexpected input length %d; should be 0, 32, 36, 38, or 41",
+		GoName: "youyouayedee.WrongTextLength",
+		Name:   "wrong text data input length",
+		Format: "unexpected input length %d for text data; should be 0, 32, 36, 38, or 41",
 	},
 	{
 		GoName: "youyouayedee.WrongBinaryLength",
